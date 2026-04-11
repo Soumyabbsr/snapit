@@ -27,7 +27,7 @@ exports.uploadPhoto = async (req, res, next) => {
 
     // 3. Save to MongoDB using correct Model fields
     const photo = await Photo.create({
-      cdnUrl: result.secure_url,
+      imageUrl: result.secure_url,
       cloudinaryPublicId: result.public_id,
       thumbnailUrl: thumbnailUrl,
       uploadedBy: req.user.id,
@@ -37,7 +37,7 @@ exports.uploadPhoto = async (req, res, next) => {
       height: result.height,
     });
 
-    await photo.populate('uploadedBy', 'name profilePicture');
+    await photo.populate('uploadedBy', 'name avatar avatarPublicId');
 
     // 4. Real-time: Emit new_photo to correctly named room (group:ID)
     const io = req.app.get('io');
@@ -70,18 +70,19 @@ exports.getGroupPhotos = async (req, res, next) => {
     if (!membership) return res.status(403).json({ success: false, message: 'Not a member of this group.' });
 
     const [photos, total] = await Promise.all([
-      Photo.find({ groupId, isDeleted: false })
+      Photo.find({ groupId, isActive: true })
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .populate('uploadedBy', 'name profilePicture')
-        .lean(),
-      Photo.countDocuments({ groupId, isDeleted: false }),
+        .populate('uploadedBy', 'name avatar avatarPublicId')
+        .lean({ virtuals: true }),
+      Photo.countDocuments({ groupId, isActive: true }),
     ]);
 
     res.status(200).json({
       success: true,
       photos,
+      total,
       hasMore: skip + photos.length < total
     });
   } catch (err) {
@@ -99,12 +100,18 @@ exports.deletePhoto = async (req, res, next) => {
     if (!photo) return res.status(404).json({ success: false, message: 'Photo not found or unauthorized.' });
 
     const groupId = photo.groupId;
+    
+    // Cloudinary cleanup
+    if (photo.cloudinaryPublicId) {
+      await cloudinaryService.deletePhoto(photo.cloudinaryPublicId);
+    }
+    
     await Photo.deleteOne({ _id: photo._id });
 
     // ─── Real-time: Notify group that a photo was deleted ────────────────
     const io = req.app.get('io');
     if (io) {
-      io.to(`group_${groupId}`).emit('photo_deleted', { photoId: req.params.photoId, groupId });
+      io.to(`group:${groupId}`).emit('photo_deleted', { photoId: req.params.photoId, groupId });
     }
 
     res.status(200).json({ success: true, message: 'Photo deleted successfully.' });

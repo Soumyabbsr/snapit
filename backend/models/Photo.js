@@ -15,7 +15,7 @@ const photoSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  cdnUrl: {
+  imageUrl: {
     type: String,
     required: true
   },
@@ -49,9 +49,15 @@ const photoSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  expiresAt: {
+    type: Date,
+    default: () => new Date(Date.now() + 24 * 60 * 60 * 1000)
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
 });
 
 photoSchema.index({ groupId: 1, createdAt: -1 });

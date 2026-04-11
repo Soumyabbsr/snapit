@@ -50,7 +50,17 @@ const userSchema = new mongoose.Schema({
     default: true
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
+
+userSchema.virtual('profilePicture').get(function() {
+  if (!this.avatar) return null;
+  return {
+    url: this.avatar,
+    publicId: this.avatarPublicId
+  };
 });
 
 userSchema.pre('save', async function(next) {
