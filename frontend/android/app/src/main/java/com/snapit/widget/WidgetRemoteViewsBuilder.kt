@@ -17,66 +17,100 @@ import kotlinx.coroutines.withContext
 
 class WidgetRemoteViewsBuilder(private val context: Context) {
     
-    fun buildSmallWidget(widgetId: Int, photoData: WidgetPhotoData?): RemoteViews {
+    fun buildSmallWidget(widgetId: Int, groupData: GroupData?, photoData: WidgetPhotoData?): RemoteViews {
         val views = RemoteViews(context.packageName, R.layout.widget_small)
+        val groupId = groupData?.id ?: ""
         
-        if (photoData != null) {
+        if (photoData != null && photoData.photoUrl.isNotEmpty()) {
             loadImage(views, R.id.widget_image, photoData.photoUrl, widgetId)
             views.setTextViewText(R.id.widget_group_name, photoData.groupName)
             views.setViewVisibility(R.id.widget_loading, View.GONE)
+        } else if (groupData != null && !groupData.latestPhoto.isNullOrEmpty()) {
+            loadImage(views, R.id.widget_image, groupData.latestPhoto, widgetId)
+            views.setTextViewText(R.id.widget_group_name, groupData.name)
+            views.setViewVisibility(R.id.widget_loading, View.GONE)
+        } else if (groupData != null) {
+            views.setImageViewResource(R.id.widget_image, R.drawable.ic_widget_placeholder)
+            views.setTextViewText(R.id.widget_group_name, groupData.name)
+            views.setViewVisibility(R.id.widget_loading, View.GONE)
         } else {
             views.setImageViewResource(R.id.widget_image, R.drawable.ic_widget_placeholder)
-            views.setTextViewText(R.id.widget_group_name, "No photo yet")
+            views.setTextViewText(R.id.widget_group_name, "Add widget")
             views.setViewVisibility(R.id.widget_loading, View.GONE)
         }
         
-        setClickIntent(views, photoData?.groupId ?: "")
+        setClickIntent(views, groupId)
         return views
     }
     
-    fun buildMediumWidget(widgetId: Int, photoData: WidgetPhotoData?): RemoteViews {
+    fun buildMediumWidget(widgetId: Int, groupData: GroupData?, photoData: WidgetPhotoData?): RemoteViews {
         val views = RemoteViews(context.packageName, R.layout.widget_medium)
+        val groupId = groupData?.id ?: ""
         
-        if (photoData != null) {
+        if (photoData != null && photoData.photoUrl.isNotEmpty()) {
             loadImage(views, R.id.widget_image, photoData.photoUrl, widgetId)
             views.setTextViewText(R.id.widget_group_name, photoData.groupName)
             views.setTextViewText(R.id.widget_uploader_name, photoData.uploaderName)
-            views.setTextViewText(R.id.widget_time_ago, 
-                TimeFormatter.getTimeAgo(photoData.uploadedAt))
+            views.setTextViewText(R.id.widget_time_ago, TimeFormatter.getTimeAgo(photoData.uploadedAt))
+            views.setViewVisibility(R.id.widget_loading, View.GONE)
+        } else if (groupData != null && !groupData.latestPhoto.isNullOrEmpty()) {
+            loadImage(views, R.id.widget_image, groupData.latestPhoto, widgetId)
+            views.setTextViewText(R.id.widget_group_name, groupData.name)
+            views.setTextViewText(R.id.widget_uploader_name, "${groupData.memberCount} members")
+            views.setTextViewText(R.id.widget_time_ago, "")
+            views.setViewVisibility(R.id.widget_loading, View.GONE)
+        } else if (groupData != null) {
+            views.setImageViewResource(R.id.widget_image, R.drawable.ic_widget_placeholder)
+            views.setTextViewText(R.id.widget_group_name, groupData.name)
+            views.setTextViewText(R.id.widget_uploader_name, "${groupData.memberCount} members")
+            views.setTextViewText(R.id.widget_time_ago, "")
             views.setViewVisibility(R.id.widget_loading, View.GONE)
         } else {
             views.setImageViewResource(R.id.widget_image, R.drawable.ic_widget_placeholder)
-            views.setTextViewText(R.id.widget_group_name, "No photo yet")
+            views.setTextViewText(R.id.widget_group_name, "Add widget")
             views.setViewVisibility(R.id.widget_loading, View.GONE)
         }
         
-        setClickIntent(views, photoData?.groupId ?: "")
+        setClickIntent(views, groupId)
         return views
     }
     
-    fun buildLargeWidget(widgetId: Int, photoData: WidgetPhotoData?): RemoteViews {
+    fun buildLargeWidget(widgetId: Int, groupData: GroupData?, photoData: WidgetPhotoData?): RemoteViews {
         val views = RemoteViews(context.packageName, R.layout.widget_large)
+        val groupId = groupData?.id ?: ""
         
-        if (photoData != null) {
+        if (photoData != null && photoData.photoUrl.isNotEmpty()) {
             loadImage(views, R.id.widget_image, photoData.photoUrl, widgetId)
             views.setTextViewText(R.id.widget_group_name, photoData.groupName)
             views.setTextViewText(R.id.widget_uploader_name, photoData.uploaderName)
-            views.setTextViewText(R.id.widget_time_ago, 
-                TimeFormatter.getTimeAgo(photoData.uploadedAt))
+            views.setTextViewText(R.id.widget_time_ago, TimeFormatter.getTimeAgo(photoData.uploadedAt))
             
             if (!photoData.uploaderAvatar.isNullOrEmpty()) {
-                loadImage(views, R.id.widget_uploader_avatar, 
-                    photoData.uploaderAvatar, widgetId)
+                loadImage(views, R.id.widget_uploader_avatar, photoData.uploaderAvatar, widgetId)
             }
             
             views.setViewVisibility(R.id.widget_loading, View.GONE)
+        } else if (groupData != null && !groupData.latestPhoto.isNullOrEmpty()) {
+            loadImage(views, R.id.widget_image, groupData.latestPhoto, widgetId)
+            views.setTextViewText(R.id.widget_group_name, groupData.name)
+            views.setTextViewText(R.id.widget_uploader_name, "${groupData.memberCount} members")
+            views.setTextViewText(R.id.widget_time_ago, "")
+            views.setImageViewResource(R.id.widget_uploader_avatar, R.mipmap.ic_launcher)
+            views.setViewVisibility(R.id.widget_loading, View.GONE)
+        } else if (groupData != null) {
+            views.setImageViewResource(R.id.widget_image, R.drawable.ic_widget_placeholder)
+            views.setTextViewText(R.id.widget_group_name, groupData.name)
+            views.setTextViewText(R.id.widget_uploader_name, "${groupData.memberCount} members")
+            views.setTextViewText(R.id.widget_time_ago, "")
+            views.setImageViewResource(R.id.widget_uploader_avatar, R.mipmap.ic_launcher)
+            views.setViewVisibility(R.id.widget_loading, View.GONE)
         } else {
             views.setImageViewResource(R.id.widget_image, R.drawable.ic_widget_placeholder)
-            views.setTextViewText(R.id.widget_group_name, "No photo available")
+            views.setTextViewText(R.id.widget_group_name, "Add widget")
             views.setViewVisibility(R.id.widget_loading, View.GONE)
         }
         
-        setClickIntent(views, photoData?.groupId ?: "")
+        setClickIntent(views, groupId)
         return views
     }
     
@@ -112,6 +146,10 @@ class WidgetRemoteViewsBuilder(private val context: Context) {
     }
     
     private fun setClickIntent(views: RemoteViews, groupId: String) {
+        if (groupId.isEmpty()) {
+            return
+        }
+        
         val intent = Intent(context, MainActivity::class.java)
         intent.action = Intent.ACTION_VIEW
         intent.data = Uri.parse("snapit://group/$groupId")

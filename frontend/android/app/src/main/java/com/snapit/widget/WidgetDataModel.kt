@@ -1,7 +1,9 @@
 package com.snapit.widget
 
 import com.google.gson.Gson
+import com.google.gson.GsonBuilder
 import com.google.gson.annotations.SerializedName
+import com.google.gson.reflect.TypeToken
 
 data class WidgetPhotoData(
     @SerializedName("photo_url")
@@ -53,7 +55,16 @@ data class GroupData(
     
     @SerializedName("latest_photo")
     val latestPhoto: String? = null
-)
+) {
+    fun toJson(): String = Gson().toJson(this)
+    
+    companion object {
+        fun fromJsonList(json: String): List<GroupData> {
+            val type = object : TypeToken<List<GroupData>>() {}.type
+            return Gson().fromJson(json, type) ?: emptyList()
+        }
+    }
+}
 
 enum class WidgetSize {
     SMALL, MEDIUM, LARGE

@@ -2,9 +2,11 @@
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:minWidth="40dp"
     android:minHeight="40dp"
-    android:updatePeriodMillis="86400000"
+    android:updatePeriodMillis="0"
     android:initialLayout="@layout/widget_small"
     android:resizeMode="horizontal|vertical"
     android:configure="com.snapit.widget.WidgetConfigActivity"
-    android:widgetCategory="home_screen">
+    android:widgetCategory="home_screen"
+    android:previewImage="@mipmap/ic_launcher"
+    android:description="@string/app_name">
 </appwidget-provider>

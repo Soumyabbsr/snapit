@@ -8,9 +8,27 @@ object WidgetPreferences {
     private const val KEY_WIDGET_GROUP = "widget_group_"
     private const val KEY_PHOTO_DATA = "photo_data_"
     private const val KEY_LAST_UPDATE = "last_update_"
+    private const val KEY_USER_GROUPS = "user_groups"
     
     private fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    }
+
+    fun saveUserGroups(context: Context, groupsJson: String) {
+        getPrefs(context).edit().putString(KEY_USER_GROUPS, groupsJson).apply()
+    }
+
+    fun getUserGroups(context: Context): List<GroupData> {
+        val json = getPrefs(context).getString(KEY_USER_GROUPS, null) ?: return emptyList()
+        return try {
+            GroupData.fromJsonList(json)
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+    
+    fun getGroupById(context: Context, groupId: String): GroupData? {
+        return getUserGroups(context).find { it.id == groupId }
     }
 
     // Save which group is assigned to which widget

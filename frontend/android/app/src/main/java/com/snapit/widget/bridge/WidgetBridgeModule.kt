@@ -119,6 +119,16 @@ class WidgetBridgeModule(reactContext: ReactApplicationContext) :
         }
     }
     
+    @ReactMethod
+    fun saveUserGroups(groupsJson: String, promise: Promise) {
+        try {
+            WidgetPreferences.saveUserGroups(reactApplicationContext, groupsJson)
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("SAVE_GROUPS_ERROR", e.message, e)
+        }
+    }
+    
     private fun parsePhotoData(map: ReadableMap): WidgetPhotoData {
         return WidgetPhotoData(
             photoUrl = map.getString("photoUrl") ?: "",

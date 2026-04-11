@@ -72,19 +72,14 @@ class WidgetConfigActivity : AppCompatActivity() {
         val pb = findViewById<ProgressBar>(R.id.progress_loading)
         pb.visibility = View.VISIBLE
         
-        // Mock data for initial setup
-        // In a real application, you might fetch this from a local database or bridge
-        val mockData = listOf(
-            GroupData("debug1", "Family Photos", null, 4),
-            GroupData("debug2", "Vacation 2026", null, 10),
-            GroupData("debug3", "Best Friends", null, 8)
-        )
+        val groups = WidgetPreferences.getUserGroups(this)
         
         pb.visibility = View.GONE
-        adapter.setGroups(mockData)
+        adapter.setGroups(groups)
         
-        if (mockData.isEmpty()) {
+        if (groups.isEmpty()) {
             findViewById<TextView>(R.id.text_empty).visibility = View.VISIBLE
+            findViewById<TextView>(R.id.text_empty).text = "No groups found.\nJoin a group in the app first."
         } else {
             findViewById<TextView>(R.id.text_empty).visibility = View.GONE
         }

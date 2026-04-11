@@ -78,21 +78,26 @@ class PhotoWidgetProvider : AppWidgetProvider() {
     private fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManager, widgetId: Int) {
         val groupId = WidgetPreferences.getWidgetGroup(context, widgetId)
         if (groupId == null) {
-            // Widget not yet configured
             return
         }
 
+        val groupData = findGroupById(context, groupId)
         val photoData = WidgetPreferences.getPhotoData(context, widgetId)
         val size = getWidgetSize(context, appWidgetManager, widgetId)
         
         val builder = WidgetRemoteViewsBuilder(context)
         val views = when (size) {
-            WidgetSize.SMALL -> builder.buildSmallWidget(widgetId, photoData)
-            WidgetSize.MEDIUM -> builder.buildMediumWidget(widgetId, photoData)
-            WidgetSize.LARGE -> builder.buildLargeWidget(widgetId, photoData)
+            WidgetSize.SMALL -> builder.buildSmallWidget(widgetId, groupData, photoData)
+            WidgetSize.MEDIUM -> builder.buildMediumWidget(widgetId, groupData, photoData)
+            WidgetSize.LARGE -> builder.buildLargeWidget(widgetId, groupData, photoData)
         }
 
         appWidgetManager.updateAppWidget(widgetId, views)
+    }
+    
+    private fun findGroupById(context: Context, groupId: String): GroupData? {
+        val groups = WidgetPreferences.getUserGroups(context)
+        return groups.find { it.id == groupId }
     }
 
     private fun refreshWidget(context: Context, appWidgetManager: AppWidgetManager, widgetId: Int) {
