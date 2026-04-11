@@ -11,7 +11,6 @@ import AppNavigator from './src/navigation/AppNavigator';
 
 import UploadQueueManager from './src/services/uploadQueueManager';
 import widgetService from './src/services/widgetService';
-import socketService from './src/services/socketService';
 
 // Prevent splash from auto-hiding until we're ready
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -68,18 +67,10 @@ export default function App() {
       console.warn('UploadQueue.processQueue failed:', e.message)
     );
 
-    // 3. Connect socket for real-time photo updates
-    socketService.connect();
-
     // 4. Refresh Android home screen widget (no-op on iOS)
     widgetService.refreshAllWidgets().catch((e) =>
       console.warn('widgetService.refreshAllWidgets failed:', e.message)
     );
-
-    return () => {
-      // Clean up socket on app unmount
-      socketService.disconnect();
-    };
   }, []);
 
   // 5. Hide splash the moment appReady flips

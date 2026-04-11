@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useReducer, useCallback } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { register as apiRegister, login as apiLogin, getCurrentUser } from '../api/auth';
+import socketService from '../services/socketService';
 
 // ─── Secure token key ──────────────────────────────────────
 const TOKEN_KEY = 'snapit_auth_token';
@@ -45,6 +46,15 @@ const deleteToken = () => SecureStore.deleteItemAsync(TOKEN_KEY);
 // ─── Provider ──────────────────────────────────────────────
 export const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
+
+  // Handle Socket Connection lifecycle
+  useEffect(() => {
+    if (state.token) {
+      socketService.connect(state.token);
+    } else {
+      socketService.disconnect();
+    }
+  }, [state.token]);
 
   // Auto-login on app start
   useEffect(() => {

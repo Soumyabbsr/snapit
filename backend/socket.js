@@ -15,13 +15,18 @@ module.exports = (server, app) => {
 
   io.use(async (socket, next) => {
     try {
-      const token = socket.handshake.auth.token;
+      let token = socket.handshake.auth.token;
       if (!token) {
         return next(new Error('Authentication error: No token provided'));
       }
 
+      // Handle "Bearer <token>" format
+      if (token.startsWith('Bearer ')) {
+        token = token.split(' ')[1];
+      }
+
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const user = await User.findById(decoded._id);
+      const user = await User.findById(decoded.id);
       
       if (!user || !user.isActive) {
         return next(new Error('Authentication error: User not found'));
@@ -30,6 +35,7 @@ module.exports = (server, app) => {
       socket.user = user;
       next();
     } catch (err) {
+      console.error('Socket Auth Error:', err.message);
       next(new Error('Authentication error: Invalid token'));
     }
   });

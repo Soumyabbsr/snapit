@@ -13,8 +13,12 @@ class SocketService {
   }
 
   // ─── Connect ─────────────────────────────────────────────
-  connect() {
+  connect(token) {
     if (this.socket?.connected) return;
+    if (!token) {
+      console.warn('⚠️ Socket connection attempted without token');
+      return;
+    }
 
     this.socket = io(BASE_URL, {
       transports: ['websocket', 'polling'],
@@ -22,6 +26,9 @@ class SocketService {
       reconnectionAttempts: 10,
       reconnectionDelay: 2000,
       timeout: 10000,
+      auth: {
+        token: `Bearer ${token}`
+      }
     });
 
     this.socket.on('connect', () => {
