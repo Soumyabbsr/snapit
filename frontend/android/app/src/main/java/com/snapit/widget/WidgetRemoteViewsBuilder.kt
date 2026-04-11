@@ -9,7 +9,7 @@ import android.util.Log
 import android.view.View
 import android.widget.RemoteViews
 import com.snapit.R
-import com.snapit.app.MainActivity
+import com.snapit.MainActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -80,32 +80,6 @@ class WidgetRemoteViewsBuilder(private val context: Context) {
         return views
     }
     
-    fun buildLoadingState(size: WidgetSize): RemoteViews {
-        val layoutId = when (size) {
-            WidgetSize.SMALL -> R.layout.widget_small
-            WidgetSize.MEDIUM -> R.layout.widget_medium
-            WidgetSize.LARGE -> R.layout.widget_large
-        }
-        
-        val views = RemoteViews(context.packageName, layoutId)
-        views.setViewVisibility(R.id.widget_loading, View.VISIBLE)
-        return views
-    }
-    
-    fun buildErrorState(size: WidgetSize, error: String): RemoteViews {
-        val layoutId = when (size) {
-            WidgetSize.SMALL -> R.layout.widget_small
-            WidgetSize.MEDIUM -> R.layout.widget_medium
-            WidgetSize.LARGE -> R.layout.widget_large
-        }
-        
-        val views = RemoteViews(context.packageName, layoutId)
-        views.setImageViewResource(R.id.widget_image, R.drawable.ic_widget_error)
-        views.setTextViewText(R.id.widget_group_name, error)
-        views.setViewVisibility(R.id.widget_loading, View.GONE)
-        return views
-    }
-    
     private fun loadImage(views: RemoteViews, imageViewId: Int, url: String, widgetId: Int) {
         val cachedFile = ImageCacheManager(context).getCachedImage(widgetId)
         
@@ -118,7 +92,6 @@ class WidgetRemoteViewsBuilder(private val context: Context) {
         }
         
         views.setImageViewResource(imageViewId, R.drawable.ic_widget_placeholder)
-        
         downloadImageAsync(url, widgetId)
     }
     

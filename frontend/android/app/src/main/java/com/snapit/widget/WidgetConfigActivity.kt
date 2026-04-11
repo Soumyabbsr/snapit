@@ -26,14 +26,17 @@ class WidgetConfigActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Set result to CANCELED in case the user backs out
         setResult(Activity.RESULT_CANCELED)
         setContentView(R.layout.activity_widget_config)
 
+        // Find the widget ID from the intent
         widgetId = intent?.extras?.getInt(
             AppWidgetManager.EXTRA_APPWIDGET_ID,
             AppWidgetManager.INVALID_APPWIDGET_ID
         ) ?: AppWidgetManager.INVALID_APPWIDGET_ID
 
+        // If this activity was started with an invalid widget ID, finish with an error
         if (widgetId == AppWidgetManager.INVALID_APPWIDGET_ID) {
             finish()
             return
@@ -66,31 +69,38 @@ class WidgetConfigActivity : AppCompatActivity() {
     }
 
     private fun fetchUserGroups() {
-        // Normally you fetch from React Native logic (e.g. AsyncStorage) or Headless JS
         val pb = findViewById<ProgressBar>(R.id.progress_loading)
         pb.visibility = View.VISIBLE
         
-        // Mock data since React Native is managing actual group API
+        // Mock data for initial setup
+        // In a real application, you might fetch this from a local database or bridge
         val mockData = listOf(
             GroupData("debug1", "Family Photos", null, 4),
-            GroupData("debug2", "Vacation 2026", null, 10)
+            GroupData("debug2", "Vacation 2026", null, 10),
+            GroupData("debug3", "Best Friends", null, 8)
         )
         
         pb.visibility = View.GONE
         adapter.setGroups(mockData)
+        
         if (mockData.isEmpty()) {
             findViewById<TextView>(R.id.text_empty).visibility = View.VISIBLE
+        } else {
+            findViewById<TextView>(R.id.text_empty).visibility = View.GONE
         }
     }
 
     private fun saveWidgetConfiguration(groupId: String) {
+        // Save to preferences
         WidgetPreferences.saveWidgetGroup(this, widgetId, groupId)
 
+        // Push initial update
         val intent = Intent(this, PhotoWidgetProvider::class.java)
         intent.action = PhotoWidgetProvider.ACTION_WIDGET_UPDATE
         intent.putExtra(PhotoWidgetProvider.EXTRA_WIDGET_ID, widgetId)
         sendBroadcast(intent)
 
+        // Return OK
         val resultValue = Intent()
         resultValue.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
         setResult(Activity.RESULT_OK, resultValue)
@@ -119,7 +129,7 @@ class WidgetConfigActivity : AppCompatActivity() {
             holder.itemView.setOnClickListener {
                 val oldPos = selectedPosition
                 selectedPosition = holder.adapterPosition
-                notifyItemChanged(oldPos)
+                if (oldPos != -1) notifyItemChanged(oldPos)
                 notifyItemChanged(selectedPosition)
                 onClick(group)
             }
@@ -128,18 +138,21 @@ class WidgetConfigActivity : AppCompatActivity() {
         override fun getItemCount() = items.size
 
         inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-            val icon = view.findViewById<ImageView>(R.id.group_icon)
-            val name = view.findViewById<TextView>(R.id.group_name)
-            val members = view.findViewById<TextView>(R.id.member_count)
-            val check = view.findViewById<CheckBox>(R.id.group_check)
+            private val icon = view.findViewById<ImageView>(R.id.group_icon)
+            private val name = view.findViewById<TextView>(R.id.group_name)
+            private val members = view.findViewById<TextView>(R.id.member_count)
+            private val check = view.findViewById<CheckBox>(R.id.group_check)
 
             fun bind(group: GroupData, isSelected: Boolean) {
                 name.text = group.name
                 members.text = "${group.memberCount} members"
                 check.isChecked = isSelected
                 
-                if (group.icon != null) {
-                    Glide.with(itemView).load(group.icon).into(icon)
+                if (!group.icon.isNullOrEmpty()) {
+                    Glide.with(itemView.context)
+                        .load(group.icon)
+                        .placeholder(R.mipmap.ic_launcher)
+                        .into(icon)
                 } else {
                     icon.setImageResource(R.mipmap.ic_launcher)
                 }
