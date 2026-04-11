@@ -32,8 +32,15 @@ apiClient.interceptors.response.use(
   (error) => {
     if (error.response) {
       const { status, data } = error.response;
+      // Backend error handler sends { error: { message: '...' } }
+      // Auth controller sends { message: '...' }
+      // This ensures we catch both formats plus validator arrays
       const message =
-        data?.message || data?.errors?.[0]?.message || 'An error occurred.';
+        data?.error?.message || 
+        data?.message || 
+        data?.errors?.[0]?.message || 
+        'An error occurred.';
+        
       const err = new Error(message);
       err.status = status;
       err.errors = data?.errors || null;

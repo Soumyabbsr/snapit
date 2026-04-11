@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
 
 const userSchema = new mongoose.Schema({
   name: {
@@ -68,7 +69,6 @@ userSchema.pre('save', async function(next) {
   }
 });
 
-const jwt = require('jsonwebtoken');
 
 // ─── Instance Methods ──────────────────────────────────────
 

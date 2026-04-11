@@ -10,8 +10,10 @@ const { authRateLimiter } = require('../middleware/rateLimiter');
 
 // Shared utility to generate tokens
 const generateTokens = (user) => {
-  const accessToken = jwt.sign({ _id: user._id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '15m' });
-  const refreshToken = jwt.sign({ _id: user._id }, process.env.JWT_REFRESH_SECRET, { expiresIn: '30d' });
+  const accessToken = user.generateAuthToken();
+  // Fallback for refresh secret to prevent server crashes if environment variable is missing
+  const refreshSecret = process.env.JWT_REFRESH_SECRET || (process.env.JWT_SECRET + '_refresh');
+  const refreshToken = jwt.sign({ id: user._id }, refreshSecret, { expiresIn: '30d' });
   return { accessToken, refreshToken };
 };
 
@@ -27,7 +29,10 @@ router.post('/register', authRateLimiter, asyncHandler(async (req, res, next) =>
 
   const existingUser = await User.findOne({ email: email.toLowerCase() });
   if (existingUser) {
-    return res.status(409).json({ success: false, error: { code: 'EMAIL_EXISTS', message: 'Email already registered' } });
+    return res.status(409).json({ 
+      success: false, 
+      error: { code: 'EMAIL_EXISTS', message: 'Email already registered' } 
+    });
   }
 
   const user = new User({ name, email, password });
@@ -39,19 +44,12 @@ router.post('/register', authRateLimiter, asyncHandler(async (req, res, next) =>
 
   await user.save();
 
+  // Return structure expected by AuthContext.js
   res.status(201).json({
     success: true,
-    data: {
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        avatar: user.avatar,
-        inviteCode: user.inviteCode
-      },
-      accessToken,
-      refreshToken: rawRefreshToken
-    }
+    token: accessToken,
+    user: user.toPublicJSON(),
+    refreshToken: rawRefreshToken // optional for future use
   });
 }));
 
@@ -67,16 +65,25 @@ router.post('/login', authRateLimiter, asyncHandler(async (req, res, next) => {
 
   const user = await User.findOne({ email: email.toLowerCase() });
   if (!user) {
-    return res.status(401).json({ success: false, error: { code: 'INVALID_CREDENTIALS', message: 'Invalid email or password' } });
+    return res.status(401).json({ 
+      success: false, 
+      error: { code: 'INVALID_CREDENTIALS', message: 'Invalid email or password' } 
+    });
   }
 
-  const isMatch = await bcrypt.compare(password, user.password);
+  const isMatch = await user.comparePassword(password);
   if (!isMatch) {
-    return res.status(401).json({ success: false, error: { code: 'INVALID_CREDENTIALS', message: 'Invalid email or password' } });
+    return res.status(401).json({ 
+      success: false, 
+      error: { code: 'INVALID_CREDENTIALS', message: 'Invalid email or password' } 
+    });
   }
 
   if (!user.isActive) {
-    return res.status(403).json({ success: false, error: { code: 'ACCOUNT_DISABLED', message: 'Account disabled. Contact support.' } });
+    return res.status(403).json({ 
+      success: false, 
+      error: { code: 'ACCOUNT_DISABLED', message: 'Account disabled. Contact support.' } 
+    });
   }
 
   const { accessToken, refreshToken: rawRefreshToken } = generateTokens(user);
@@ -85,19 +92,12 @@ router.post('/login', authRateLimiter, asyncHandler(async (req, res, next) => {
 
   await user.save();
 
+  // Return structure expected by AuthContext.js
   res.status(200).json({
     success: true,
-    data: {
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        avatar: user.avatar,
-        inviteCode: user.inviteCode
-      },
-      accessToken,
-      refreshToken: rawRefreshToken
-    }
+    token: accessToken,
+    user: user.toPublicJSON(),
+    refreshToken: rawRefreshToken // optional for future use
   });
 }));
 
