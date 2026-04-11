@@ -87,13 +87,13 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.snapit.app'
+    namespace "com.snapit"
     defaultConfig {
-        applicationId 'com.snapit.app'
+        applicationId "com.snapit"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
-        versionName "1.0.0"
+        versionName "1.0"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }
@@ -180,10 +180,8 @@ dependencies {
         implementation jscFlavor
     }
 
-    // --- Widget Native Dependencies ---
-    implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'androidx.work:work-runtime-ktx:2.8.1'
-    implementation 'com.github.bumptech.glide:glide:4.15.1'
-    annotationProcessor 'com.github.bumptech.glide:compiler:4.15.1'
-    implementation 'com.google.code.gson:gson:2.10.1'
+    // Native Widget Dependencies
+    implementation "androidx.work:work-runtime-ktx:2.9.0"
+    implementation "com.google.code.gson:gson:2.10.1"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3"
 }

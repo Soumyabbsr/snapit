@@ -5,12 +5,7 @@ import com.facebook.react.bridge.NativeModule
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.uimanager.ViewManager
 
-/**
- * React Native Package that registers WidgetBridgeModule
- * so it is available as NativeModules.WidgetBridge in JS.
- */
-class WidgetBridgePackage : ReactPackage {
-
+class WidgetPackage : ReactPackage {
     override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> {
         return listOf(WidgetBridgeModule(reactContext))
     }
