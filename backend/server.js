@@ -8,10 +8,10 @@ const connectDB = require('./config/db');
 const errorHandler = require('./middleware/errorHandler');
 
 // ─── Import Routes ─────────────────────────────────────────
-const authRoutes = require('./routes/auth');
-const userRoutes = require('./routes/users');
-const photoRoutes = require('./routes/photos');
-const groupRoutes = require('./routes/groups');
+const authRoutes = require('./routes/auth.routes');
+const userRoutes = require('./routes/user.routes');
+const photoRoutes = require('./routes/photo.routes');
+const groupRoutes = require('./routes/group.routes');
 const inviteRoutes = require('./routes/invites');
 const widgetRoutes = require('./routes/widgets');
 

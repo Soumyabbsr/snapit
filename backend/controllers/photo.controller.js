@@ -1,6 +1,7 @@
 const { validationResult } = require('express-validator');
 const Photo = require('../models/Photo');
 const GroupMember = require('../models/GroupMember');
+const cloudinaryService = require('../services/cloudinaryService');
 
 // ─────────────────────────────────────────────────────────
 // @route   POST /api/photos/upload
@@ -16,30 +17,36 @@ exports.uploadPhoto = async (req, res, next) => {
     const { caption = '', groupId } = req.body;
     if (!groupId) return res.status(400).json({ success: false, message: 'Group ID is required.' });
 
-    // Validate membership
+    // 1. Validate membership
     const membership = await GroupMember.findOne({ groupId, userId: req.user.id });
     if (!membership) return res.status(403).json({ success: false, message: 'Not a member of this group.' });
 
-    const base64Image = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+    // 2. Upload to Cloudinary
+    const result = await cloudinaryService.uploadPhoto(req.file.buffer, groupId, req.user.id);
+    const thumbnailUrl = cloudinaryService.generateThumbnailUrl(result.public_id);
 
+    // 3. Save to MongoDB using correct Model fields
     const photo = await Photo.create({
-      imageUrl: base64Image,
+      cdnUrl: result.secure_url,
+      cloudinaryPublicId: result.public_id,
+      thumbnailUrl: thumbnailUrl,
       uploadedBy: req.user.id,
       groupId,
       caption,
-      fileSize: req.file.size,
+      width: result.width,
+      height: result.height,
     });
 
     await photo.populate('uploadedBy', 'name profilePicture');
 
-    // ─── Real-time: Emit new_photo to all group members via Socket.io ───
+    // 4. Real-time: Emit new_photo to correctly named room (group:ID)
     const io = req.app.get('io');
     if (io) {
-      io.to(`group_${groupId}`).emit('new_photo', {
+      io.to(`group:${groupId}`).emit('new_photo', {
         photo: photo.toObject(),
         groupId,
       });
-      console.log(`📡 Emitted new_photo to group_${groupId}`);
+      console.log(`📡 Emitted new_photo to group:${groupId}`);
     }
 
     res.status(201).json({ success: true, photo });

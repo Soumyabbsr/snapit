@@ -23,7 +23,7 @@ const authMiddleware = async (req, res, next) => {
       return res.status(401).json({ success: false, error: { code: 'INVALID_TOKEN', message: 'Invalid token' } });
     }
 
-    const user = await User.findById(decoded._id);
+    const user = await User.findById(decoded.id);
     if (!user || !user.isActive) {
        return res.status(401).json({ success: false, error: { code: 'USER_NOT_FOUND' } });
     }

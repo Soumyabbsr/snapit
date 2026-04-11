@@ -49,9 +49,9 @@ exports.getUserGroups = async (req, res, next) => {
     // Attach member count and latest photo
     for (const group of groups) {
       group.memberCount = await GroupMember.countDocuments({ groupId: group._id });
-      const latestPhoto = await Photo.findOne({ groupId: group._id, isDeleted: false })
+      const latestPhoto = await Photo.findOne({ groupId: group._id, isActive: true })
         .sort({ createdAt: -1 })
-        .select('imageUrl createdAt')
+        .select('cdnUrl thumbnailUrl createdAt')
         .lean();
       group.latestPhoto = latestPhoto || null;
     }
