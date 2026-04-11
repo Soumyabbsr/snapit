@@ -21,7 +21,24 @@ exports.uploadPhoto = async (req, res, next) => {
     const membership = await GroupMember.findOne({ groupId, userId: req.user.id });
     if (!membership) return res.status(403).json({ success: false, message: 'Not a member of this group.' });
 
-    // 2. Upload to Cloudinary
+    // 2. "One photo per day" check
+    // Look for any active photo by this user in this group in the last 24 hours
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const existingPhoto = await Photo.findOne({
+      groupId,
+      uploadedBy: req.user.id,
+      isActive: true,
+      createdAt: { $gte: twentyFourHoursAgo }
+    });
+
+    if (existingPhoto) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'You can only post one photo per day in this group. Delete your current photo to post a new one.' 
+      });
+    }
+
+    // 3. Upload to Cloudinary
     const result = await cloudinaryService.uploadPhoto(req.file.buffer, groupId, req.user.id);
     const thumbnailUrl = cloudinaryService.generateThumbnailUrl(result.public_id);
 
@@ -38,6 +55,20 @@ exports.uploadPhoto = async (req, res, next) => {
     });
 
     await photo.populate('uploadedBy', 'name avatar avatarPublicId');
+
+    // ─── Update Associated Widgets ─────────────────────────────
+    // When a new photo is posted, ensure all widgets linked to this group
+    // are updated to show the latest photo ID immediately.
+    try {
+      await require('../models/Widget').updateMany(
+        { groupId },
+        { currentPhotoId: photo._id, refreshedAt: new Date() }
+      );
+      console.log(`🖼️ Updated widgets for group: ${groupId}`);
+    } catch (widgetErr) {
+      console.error('Widget sync failed:', widgetErr.message);
+      // Non-blocking error
+    }
 
     // 4. Real-time: Emit new_photo to correctly named room (group:ID)
     const io = req.app.get('io');

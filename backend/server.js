@@ -13,7 +13,7 @@ const userRoutes = require('./routes/user.routes');
 const photoRoutes = require('./routes/photo.routes');
 const groupRoutes = require('./routes/group.routes');
 const inviteRoutes = require('./routes/invites');
-const widgetRoutes = require('./routes/widgets');
+const widgetRoutes = require('./routes/widget.routes');
 
 // ─── Import Socket Server ──────────────────────────────────
 const setupSocketServer = require('./socket');
