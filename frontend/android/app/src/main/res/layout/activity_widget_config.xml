@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#0A0A0A"
     android:orientation="vertical"
     android:padding="20dp">
 
+    <!-- Title -->
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -16,6 +16,7 @@
         android:textStyle="bold"
         android:layout_marginBottom="8dp" />
 
+    <!-- Subtitle -->
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -24,11 +25,13 @@
         android:textSize="14sp"
         android:layout_marginBottom="24dp" />
 
+    <!-- Content Area -->
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1">
 
+        <!-- Recycler -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recycler_groups"
             android:layout_width="match_parent"
@@ -36,6 +39,7 @@
             android:clipToPadding="false"
             android:paddingBottom="80dp" />
 
+        <!-- Loader -->
         <ProgressBar
             android:id="@+id/progress_loading"
             android:layout_width="wrap_content"
@@ -44,6 +48,7 @@
             android:visibility="gone"
             android:indeterminateTint="#FF6B35" />
 
+        <!-- Empty State -->
         <TextView
             android:id="@+id/text_empty"
             android:layout_width="wrap_content"
@@ -54,11 +59,11 @@
             android:visibility="gone" />
     </FrameLayout>
 
+    <!-- Bottom Buttons -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gap="12dp">
+        android:orientation="horizontal">
 
         <Button
             android:id="@+id/btn_cancel"
@@ -67,7 +72,8 @@
             android:layout_weight="1"
             android:backgroundTint="#222222"
             android:text="Cancel"
-            android:textColor="#FFFFFF" />
+            android:textColor="#FFFFFF"
+            android:layout_marginEnd="6dp" />
 
         <Button
             android:id="@+id/btn_add"
@@ -77,7 +83,7 @@
             android:backgroundTint="#FF6B35"
             android:text="Add Widget"
             android:textColor="#FFFFFF"
-            android:layout_marginStart="12dp" />
+            android:layout_marginStart="6dp" />
     </LinearLayout>
 
 </LinearLayout>
