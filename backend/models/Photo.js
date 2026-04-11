@@ -48,7 +48,8 @@ const photoSchema = new mongoose.Schema({
   }],
   isActive: {
     type: Boolean,
-    default: true
+    default: true,
+    index: true
   },
   expiresAt: {
     type: Date,
@@ -62,6 +63,5 @@ const photoSchema = new mongoose.Schema({
 
 photoSchema.index({ groupId: 1, createdAt: -1 });
 photoSchema.index({ uploadedBy: 1 });
-photoSchema.index({ isActive: 1 });
 
 module.exports = mongoose.model('Photo', photoSchema);

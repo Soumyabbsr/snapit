@@ -1,5 +1,6 @@
 const Group = require('../models/Group');
 const Invite = require('../models/Invite');
+const generateCode = require('./generateCode');
 
 const generateRandomString = (length) => {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Excluded confusing chars like I, O, 1, 0
@@ -13,27 +14,17 @@ const generateRandomString = (length) => {
 /**
  * Generate a unique 6-digit alphanumeric invite code.
  */
-const generateUniqueInviteCode = async () => {
-  let isUnique = false;
-  let code = '';
-  let safety = 0;
+const generateUniqueInviteCode = async () => generateCode(
+  6,
+  true,
+  async (code) => {
+    const [existingGroup, existingInvite] = await Promise.all([
+      Group.exists({ inviteCode: code }),
+      Invite.exists({ code }),
+    ]);
 
-  while (!isUnique && safety < 10) {
-    code = generateRandomString(6);
-    const existingGroup = await Group.findOne({ inviteCode: code });
-    const existingInvite = await Invite.findOne({ code });
-
-    if (!existingGroup && !existingInvite) {
-      isUnique = true;
-    }
-    safety++;
+    return Boolean(existingGroup || existingInvite);
   }
-
-  if (!isUnique) {
-    throw new Error('Failed to generate a unique invite code');
-  }
-
-  return code;
-};
+);
 
 module.exports = { generateUniqueInviteCode };

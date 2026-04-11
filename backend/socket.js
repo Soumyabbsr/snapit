@@ -1,17 +1,29 @@
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 const User = require('./models/User');
-const Group = require('./models/Group');
+const GroupMember = require('./models/GroupMember');
 
 module.exports = (server, app) => {
   const io = new Server(server, {
     cors: {
       origin: '*',
-      methods: ['GET', 'POST']
-    }
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    },
   });
 
   app.set('io', io);
+
+  const joinUserRooms = async (socket) => {
+    const memberships = await GroupMember.find({ userId: socket.user._id })
+      .select('groupId')
+      .lean();
+
+    memberships.forEach(({ groupId }) => {
+      socket.join(`group:${groupId.toString()}`);
+    });
+
+    return memberships.map(({ groupId }) => groupId.toString());
+  };
 
   io.use(async (socket, next) => {
     try {
@@ -49,33 +61,39 @@ module.exports = (server, app) => {
     // Join personal room
     socket.join(`user:${socket.user._id}`);
 
-    // Fetch user's groupIds from DB
-    const user = await User.findById(socket.user._id);
-    user.groupIds.forEach(groupId => {
-      socket.join(`group:${groupId.toString()}`);
-    });
+    const groupIds = await joinUserRooms(socket);
 
     // Emit connection ready
     socket.emit('connection:ready', { 
       userId: socket.user._id, 
-      groupIds: user.groupIds 
+      groupIds
     });
 
-    socket.on('group:join', async (data) => {
-      const { groupId } = data;
+    const handleJoinGroup = async (data) => {
+      const groupId = typeof data === 'string' ? data : data?.groupId;
       if (!groupId) return;
 
-      const group = await Group.findById(groupId);
-      if (group && group.members.some(m => m.userId.toString() === socket.user._id.toString())) {
+      const membership = await GroupMember.findOne({ groupId, userId: socket.user._id });
+      if (membership) {
         socket.join(`group:${groupId}`);
       }
-    });
+    };
 
-    socket.on('group:leave', (data) => {
-      const { groupId } = data;
+    socket.on('group:join', handleJoinGroup);
+    socket.on('join_group', handleJoinGroup);
+
+    const handleLeaveGroup = (data) => {
+      const groupId = typeof data === 'string' ? data : data?.groupId;
       if (groupId) {
         socket.leave(`group:${groupId}`);
       }
+    };
+
+    socket.on('group:leave', handleLeaveGroup);
+    socket.on('leave_group', handleLeaveGroup);
+
+    socket.on('rejoin:rooms', async () => {
+      await joinUserRooms(socket);
     });
 
     socket.on('disconnect', () => {

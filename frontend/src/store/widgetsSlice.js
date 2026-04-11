@@ -1,13 +1,12 @@
 import { createSlice } from '@reduxjs/toolkit';
 
-// ─── Widgets Slice ─────────────────────────────────────────────
-// Manages widget configuration state persisted via redux-persist.
 const widgetsSlice = createSlice({
   name: 'widgets',
   initialState: {
-    config: null,       // { groupId, displayCount, refreshInterval }
+    config: null,
     lastRefreshed: null,
     isConfigured: false,
+    widgets: [],
   },
   reducers: {
     setWidgetConfig: (state, action) => {
@@ -22,8 +21,21 @@ const widgetsSlice = createSlice({
       state.isConfigured = false;
       state.lastRefreshed = null;
     },
+    updateWidgetPhoto: (state, action) => {
+      const { groupId, photo } = action.payload;
+      const gid = groupId != null && groupId.toString ? groupId.toString() : String(groupId);
+      const idx = state.widgets.findIndex(
+        (w) => w.groupId != null && w.groupId.toString() === gid
+      );
+      if (idx === -1) return;
+      const url = photo.cdnUrl || photo.imageUrl;
+      state.widgets[idx].currentPhotoUrl = url;
+      state.widgets[idx].currentPhotoUploader = photo.uploadedBy?.name;
+      state.widgets[idx].refreshedAt = new Date().toISOString();
+    },
   },
 });
 
-export const { setWidgetConfig, setLastRefreshed, clearWidgetConfig } = widgetsSlice.actions;
+export const { setWidgetConfig, setLastRefreshed, clearWidgetConfig, updateWidgetPhoto } =
+  widgetsSlice.actions;
 export default widgetsSlice.reducer;

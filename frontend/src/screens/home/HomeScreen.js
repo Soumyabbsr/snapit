@@ -1,16 +1,21 @@
 import React, { useEffect, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  FlatList, ActivityIndicator, Image
+  FlatList, ActivityIndicator, Image, Platform, ToastAndroid
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useDispatch } from 'react-redux';
 import { useAuth } from '../../context/AuthContext';
 import { useGroup } from '../../context/GroupContext';
 import { useFocusEffect } from '@react-navigation/native';
+import socketService from '../../services/socketService';
+import { prependPhoto } from '../../store/photosSlice';
+import { updateWidgetPhoto } from '../../store/widgetsSlice';
 
 const HomeScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
+  const dispatch = useDispatch();
   const { user } = useAuth();
   const { groups, loading, fetchUserGroups, selectGroup } = useGroup();
 
@@ -19,6 +24,27 @@ const HomeScreen = ({ navigation }) => {
       fetchUserGroups();
     }, [fetchUserGroups])
   );
+
+  useEffect(() => {
+    if (!user?.id) return undefined;
+
+    const showInAppBanner = ({ message }) => {
+      if (Platform.OS === 'android') ToastAndroid.show(message, ToastAndroid.SHORT);
+    };
+
+    const handler = ({ photo, groupId }) => {
+      dispatch(prependPhoto({ groupId: String(groupId), photo }));
+      const senderId = photo?.uploadedBy?._id ?? photo?.uploadedBy?.id;
+      const me = user.id ?? user._id;
+      if (senderId != null && me != null && String(senderId) !== String(me)) {
+        dispatch(updateWidgetPhoto({ groupId: String(groupId), photo }));
+        showInAppBanner({ message: `${photo?.uploadedBy?.name || 'Someone'} shared a photo` });
+      }
+    };
+
+    const unsub = socketService.on('photo:new', handler);
+    return () => unsub();
+  }, [user, dispatch]);
 
   const handleGroupPress = (groupId) => {
     selectGroup(groupId);

@@ -1,6 +1,8 @@
 const { validationResult } = require('express-validator');
+const mongoose = require('mongoose');
 const Photo = require('../models/Photo');
 const GroupMember = require('../models/GroupMember');
+const Widget = require('../models/Widget');
 const cloudinaryService = require('../services/cloudinaryService');
 
 // ─────────────────────────────────────────────────────────
@@ -25,7 +27,7 @@ exports.uploadPhoto = async (req, res, next) => {
     // Look for any active photo by this user in this group in the last 24 hours
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const existingPhoto = await Photo.findOne({
-      groupId,
+      groupId: new mongoose.Types.ObjectId(groupId),
       uploadedBy: req.user.id,
       isActive: true,
       createdAt: { $gte: twentyFourHoursAgo }
@@ -48,36 +50,54 @@ exports.uploadPhoto = async (req, res, next) => {
       cloudinaryPublicId: result.public_id,
       thumbnailUrl: thumbnailUrl,
       uploadedBy: req.user.id,
-      groupId,
+      groupId: new mongoose.Types.ObjectId(groupId),
       caption,
       width: result.width,
       height: result.height,
     });
 
-    await photo.populate('uploadedBy', 'name avatar avatarPublicId');
+    await photo.populate('uploadedBy', 'name avatar avatarPublicId _id');
 
-    // ─── Update Associated Widgets ─────────────────────────────
-    // When a new photo is posted, ensure all widgets linked to this group
-    // are updated to show the latest photo ID immediately.
+    // ─── Update widgets for other members only (not the uploader) ─────
     try {
-      await require('../models/Widget').updateMany(
-        { groupId },
-        { currentPhotoId: photo._id, refreshedAt: new Date() }
-      );
-      console.log(`🖼️ Updated widgets for group: ${groupId}`);
+      const otherMembers = await GroupMember.find({
+        groupId: new mongoose.Types.ObjectId(groupId),
+        userId: { $ne: req.user._id },
+      })
+        .select('userId')
+        .lean();
+
+      const uploaderName = req.user.name || '';
+
+      if (otherMembers.length > 0) {
+        const updatePromises = otherMembers.map((member) =>
+          Widget.findOneAndUpdate(
+            { userId: member.userId, groupId: new mongoose.Types.ObjectId(groupId) },
+            {
+              currentPhotoId: photo._id,
+              currentPhotoUrl: photo.imageUrl,
+              currentPhotoUploader: uploaderName,
+              currentPhotoUploadedAt: photo.createdAt,
+              refreshedAt: new Date(),
+            },
+            { upsert: false, new: true }
+          )
+        );
+        await Promise.allSettled(updatePromises);
+      }
+      console.log(`🖼️ Updated peer widgets for group: ${groupId}`);
     } catch (widgetErr) {
       console.error('Widget sync failed:', widgetErr.message);
-      // Non-blocking error
     }
 
-    // 4. Real-time: Emit new_photo to correctly named room (group:ID)
     const io = req.app.get('io');
     if (io) {
-      io.to(`group:${groupId}`).emit('new_photo', {
-        photo: photo.toObject(),
-        groupId,
+      const photoPayload = photo.toObject({ virtuals: true });
+      io.to(`group:${groupId}`).emit('photo:new', {
+        photo: photoPayload,
+        groupId: String(groupId),
       });
-      console.log(`📡 Emitted new_photo to group:${groupId}`);
+      console.log(`📡 Emitted photo:new to group:${groupId}`);
     }
 
     res.status(201).json({ success: true, photo });

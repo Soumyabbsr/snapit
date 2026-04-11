@@ -5,9 +5,12 @@ import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 
+import { Provider } from 'react-redux';
+import { PersistGate } from 'redux-persist/integration/react';
 import { AuthProvider } from './src/context/AuthContext';
 import { GroupProvider } from './src/context/GroupContext';
 import AppNavigator from './src/navigation/AppNavigator';
+import { store, persistor } from './src/store/store';
 
 import UploadQueueManager from './src/services/uploadQueueManager';
 import widgetService from './src/services/widgetService';
@@ -104,13 +107,17 @@ export default function App() {
       <View style={styles.root}>
         <SafeAreaProvider>
           <StatusBar style="light" backgroundColor="#0a0a0a" />
-          <AuthProvider>
-            <GroupProvider>
-              <NavigationContainer>
-                <AppNavigator />
-              </NavigationContainer>
-            </GroupProvider>
-          </AuthProvider>
+          <Provider store={store}>
+            <PersistGate persistor={persistor} loading={null}>
+              <AuthProvider>
+                <GroupProvider>
+                  <NavigationContainer>
+                    <AppNavigator />
+                  </NavigationContainer>
+                </GroupProvider>
+              </AuthProvider>
+            </PersistGate>
+          </Provider>
         </SafeAreaProvider>
       </View>
     </ErrorBoundary>

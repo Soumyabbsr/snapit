@@ -6,14 +6,15 @@ const { protect } = require('../middleware/auth.middleware');
 const { handleUpload } = require('../middleware/upload.middleware');
 const { uploadPhotoValidator } = require('../middleware/validators');
 const { uploadLimiter } = require('../middleware/security.middleware');
+const validateObjectId = require('../middleware/validateObjectId');
 
 // POST /api/photos/upload
-router.post('/upload', protect, uploadLimiter, handleUpload('image'), uploadPhotoValidator, uploadPhoto);
+router.post('/upload', protect, uploadLimiter, handleUpload('photo'), uploadPhotoValidator, uploadPhoto);
 
 // DELETE /api/photos/:photoId
-router.delete('/:photoId', protect, deletePhoto);
+router.delete('/:photoId', protect, validateObjectId, deletePhoto);
 
 // GET /api/groups/:groupId/photos (Note: Need to map this in server.js or group routes)
-router.get('/group/:groupId', protect, getGroupPhotos);
+router.get('/group/:groupId', protect, validateObjectId, getGroupPhotos);
 
 module.exports = router;

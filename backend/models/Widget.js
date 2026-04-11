@@ -21,6 +21,18 @@ const widgetSchema = new mongoose.Schema({
     ref: 'Photo',
     default: null
   },
+  currentPhotoUrl: {
+    type: String,
+    default: null
+  },
+  currentPhotoUploader: {
+    type: String,
+    default: null
+  },
+  currentPhotoUploadedAt: {
+    type: Date,
+    default: null
+  },
   refreshedAt: {
     type: Date,
     default: null

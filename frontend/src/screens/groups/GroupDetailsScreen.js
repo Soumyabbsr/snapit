@@ -6,6 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGroup } from '../../context/GroupContext';
+import { useAuth } from '../../context/AuthContext';
 import * as api from '../../api/groups';
 import * as photoApi from '../../api/photos';
 import PhotoCard from '../../components/photos/PhotoCard';
@@ -15,6 +16,7 @@ const GroupDetailsScreen = ({ navigation, route }) => {
   const { groupId } = route.params || {};
   const insets = useSafeAreaInsets();
   const { leaveGroup } = useGroup();
+  const { token } = useAuth();
 
   const [group, setGroup] = useState(null);
   const [photos, setPhotos] = useState([]);
@@ -65,11 +67,10 @@ const GroupDetailsScreen = ({ navigation, route }) => {
     if (!groupId) return;
 
     // Connect + join group room
-    socketService.connect();
+    void socketService.connect(token);
     socketService.joinGroup(groupId);
 
-    // Listen: new photo posted by any group member
-    const unsubNew = socketService.on('new_photo', ({ photo, groupId: incomingGroupId }) => {
+    const unsubNew = socketService.on('photo:new', ({ photo, groupId: incomingGroupId }) => {
       if (incomingGroupId !== groupId) return;
       setPhotos((prev) => {
         // Prevent duplicates
@@ -97,7 +98,7 @@ const GroupDetailsScreen = ({ navigation, route }) => {
       unsubNew();
       unsubDeleted();
     };
-  }, [groupId]);
+  }, [groupId, token]);
 
   // ─── Handlers ─────────────────────────────────────────────
   const handleRefresh = () => {

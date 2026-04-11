@@ -20,6 +20,7 @@ import UploadQueueScreen from '../screens/upload/UploadQueueScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
 import EditProfileScreen from '../screens/profile/EditProfileScreen';
 import WidgetSetupScreen from '../screens/profile/WidgetSetupScreen';
+import WidgetDisplayScreen from '../screens/widget/WidgetDisplayScreen';
 
 const Tab = createBottomTabNavigator();
 const HomeStack = createNativeStackNavigator();
@@ -71,6 +72,11 @@ const ProfileStackNavigator = () => (
     <ProfileStack.Screen name="ProfileMain" component={ProfileScreen} />
     <ProfileStack.Screen name="EditProfile" component={EditProfileScreen} />
     <ProfileStack.Screen name="WidgetSetup" component={WidgetSetupScreen} />
+    <ProfileStack.Screen
+      name="WidgetDisplay"
+      component={WidgetDisplayScreen}
+      options={{ animation: 'slide_from_right' }}
+    />
   </ProfileStack.Navigator>
 );
 

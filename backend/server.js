@@ -19,11 +19,13 @@ const widgetRoutes = require('./routes/widget.routes');
 const setupSocketServer = require('./socket');
 
 // ─── Connect Database ──────────────────────────────────────
-connectDB();
-
 const app = express();
 app.use(helmet());
-app.use(cors({ origin: '*', methods: ['GET', 'POST', 'PATCH', 'DELETE', 'PUT'] }));
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  credentials: true,
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -53,7 +55,10 @@ setupSocketServer(server, app);
 // ─── Start Server ──────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
 
-server.listen(PORT, () => {
+const start = async () => {
+  await connectDB();
+
+  server.listen(PORT, () => {
   console.log(`🚀 SnapIt server running on port ${PORT}`);
 }).on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
@@ -63,6 +68,12 @@ server.listen(PORT, () => {
     console.error('❌ Server error:', err);
     process.exit(1);
   }
+  });
+};
+
+start().catch((err) => {
+  console.error('Startup failed:', err);
+  process.exit(1);
 });
 
 module.exports = { app, server };

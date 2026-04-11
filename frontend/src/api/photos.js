@@ -14,7 +14,7 @@ export const uploadPhoto = async (imageUri, groupId = null, caption = '', onProg
   const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
 
   const formData = new FormData();
-  formData.append('image', {
+  formData.append('photo', {
     uri: imageUri,
     type: mimeType,
     name: filename,

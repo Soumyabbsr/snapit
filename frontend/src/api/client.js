@@ -1,6 +1,8 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BASE_URL } from '../config/constants';
+import { store } from '../store/store';
 
 const TOKEN_KEY = 'snapit_auth_token';
 
@@ -8,39 +10,44 @@ const TOKEN_KEY = 'snapit_auth_token';
 const apiClient = axios.create({
   baseURL: `${BASE_URL}/api`,
   timeout: 30000,
-  headers: { 
+  headers: {
     'Content-Type': 'application/json',
-    'Bypass-Tunnel-Reminder': 'true' // Bypasses LocalTunnel's warning page
+    BypassTunnelReminder: 'true',
   },
 });
 
-// ─── Request: inject token ─────────────────────────────────
+// ─── Request: inject token (Redux → SecureStore → AsyncStorage) ──
 apiClient.interceptors.request.use(
   async (config) => {
     try {
-      const token = await SecureStore.getItemAsync(TOKEN_KEY);
-      if (token) config.headers.Authorization = `Bearer ${token}`;
+      let token = store.getState()?.auth?.accessToken;
+      if (!token) {
+        token = await SecureStore.getItemAsync(TOKEN_KEY);
+      }
+      if (!token) {
+        token = await AsyncStorage.getItem(TOKEN_KEY);
+      }
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     } catch {}
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// ─── Response: normalise errors ────────────────────────────
+// ─── Response: normalise errors ───────────────────────────
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     if (error.response) {
       const { status, data } = error.response;
-      // Backend error handler sends { error: { message: '...' } }
-      // Auth controller sends { message: '...' }
-      // This ensures we catch both formats plus validator arrays
       const message =
-        data?.error?.message || 
-        data?.message || 
-        data?.errors?.[0]?.message || 
+        data?.error?.message ||
+        data?.message ||
+        data?.errors?.[0]?.message ||
         'An error occurred.';
-        
+
       const err = new Error(message);
       err.status = status;
       err.errors = data?.errors || null;

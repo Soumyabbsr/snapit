@@ -50,7 +50,7 @@ export const AuthProvider = ({ children }) => {
   // Handle Socket Connection lifecycle
   useEffect(() => {
     if (state.token) {
-      socketService.connect(state.token);
+      void socketService.connect(state.token);
     } else {
       socketService.disconnect();
     }

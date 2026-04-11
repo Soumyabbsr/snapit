@@ -1,5 +1,8 @@
 import { io } from 'socket.io-client';
+import * as SecureStore from 'expo-secure-store';
 import { BASE_URL } from '../config/constants';
+
+const TOKEN_KEY = 'snapit_auth_token';
 
 /**
  * SnapIt Socket Service
@@ -9,13 +12,20 @@ class SocketService {
   constructor() {
     this.socket = null;
     this.activeGroupRooms = new Set();
-    this.listeners = new Map(); // event → Set of callbacks
+    this.listeners = new Map();
   }
 
-  // ─── Connect ─────────────────────────────────────────────
-  connect(token) {
+  async connect(token) {
     if (this.socket?.connected) return;
-    if (!token) {
+    let authToken = token;
+    if (!authToken) {
+      try {
+        authToken = await SecureStore.getItemAsync(TOKEN_KEY);
+      } catch {
+        authToken = null;
+      }
+    }
+    if (!authToken) {
       console.warn('⚠️ Socket connection attempted without token');
       return;
     }
@@ -27,13 +37,13 @@ class SocketService {
       reconnectionDelay: 2000,
       timeout: 10000,
       auth: {
-        token: `Bearer ${token}`
-      }
+        token: `Bearer ${authToken}`,
+      },
     });
 
     this.socket.on('connect', () => {
       console.log('🔌 Socket connected:', this.socket.id);
-      // Rejoin all active rooms after reconnect
+      this.socket.emit('rejoin:rooms');
       this.activeGroupRooms.forEach((groupId) => {
         this.socket.emit('join_group', groupId);
       });
@@ -48,7 +58,6 @@ class SocketService {
     });
   }
 
-  // ─── Disconnect ───────────────────────────────────────────
   disconnect() {
     if (this.socket) {
       this.socket.disconnect();
@@ -58,34 +67,30 @@ class SocketService {
     }
   }
 
-  // ─── Join Group Room ──────────────────────────────────────
   joinGroup(groupId) {
     if (!groupId) return;
     this.activeGroupRooms.add(groupId);
     if (this.socket?.connected) {
       this.socket.emit('join_group', groupId);
-      console.log(`📦 Joined group room: group_${groupId}`);
+      console.log(`📦 Joined group room: group:${groupId}`);
     }
   }
 
-  // ─── Leave Group Room ─────────────────────────────────────
   leaveGroup(groupId) {
     if (!groupId) return;
     this.activeGroupRooms.delete(groupId);
     if (this.socket?.connected) {
       this.socket.emit('leave_group', groupId);
-      console.log(`🚪 Left group room: group_${groupId}`);
+      console.log(`🚪 Left group room: group:${groupId}`);
     }
   }
 
-  // ─── Subscribe to Event ───────────────────────────────────
   on(event, callback) {
     if (!this.socket) return () => {};
     this.socket.on(event, callback);
-    return () => this.socket?.off(event, callback); // returns unsubscribe fn
+    return () => this.socket?.off(event, callback);
   }
 
-  // ─── Unsubscribe from Event ───────────────────────────────
   off(event, callback) {
     this.socket?.off(event, callback);
   }
