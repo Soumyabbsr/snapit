@@ -21,7 +21,7 @@ class ImageCacheManager(private val context: Context) {
     
     // File per widget + image URL so we never show a stale bitmap after the URL changes
     private fun getCacheFilePath(widgetId: Int, imageUrl: String): File {
-        val safe = imageUrl.hashCode().toString().replace('-', "n")
+        val safe = imageUrl.hashCode().toString().replace('-', 'n')
         return File(cacheDir, "widget_${widgetId}_$safe.jpg")
     }
 

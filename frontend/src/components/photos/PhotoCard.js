@@ -65,13 +65,18 @@ const PhotoCard = ({ photo, onDelete }) => {
       </View>
 
       {/* ── Image ── */}
-      <TouchableWithoutFeedback onPress={() => navigation.navigate('PhotoDetail', { photo: { ...photo, uploadedBy }, onPhotoDeleted: onDelete })}>
+      <TouchableWithoutFeedback
+        onPress={() =>
+          navigation.navigate('PhotoDetail', { photo: { ...photo, uploadedBy } })
+        }
+      >
         <View style={styles.imageContainer}>
-          <Image 
-            source={{ uri: photo.imageUrl || photo.thumbnailUrl }} 
+          <Image
+            source={{ uri: photo.imageUrl || photo.thumbnailUrl }}
             style={styles.image}
             contentFit="cover"
             transition={200}
+            recyclingKey={photo._id}
           />
           <View style={styles.expirationBadge}>
             <Ionicons name="timer-outline" size={12} color="#fff" style={{ marginRight: 4 }} />

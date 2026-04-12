@@ -3,7 +3,10 @@ package com.snapit.widget
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import kotlin.math.max
+import kotlin.math.roundToInt
 import android.net.Uri
 import android.util.Log
 import android.view.View
@@ -123,7 +126,7 @@ class WidgetRemoteViewsBuilder(private val context: Context) {
         val cachedFile = ImageCacheManager(context).getCachedImage(widgetId, url)
 
         if (cachedFile?.exists() == true) {
-            val bitmap = BitmapFactory.decodeFile(cachedFile.absolutePath)
+            val bitmap = decodeBitmapForWidget(cachedFile.absolutePath)
             if (bitmap != null) {
                 views.setImageViewBitmap(imageViewId, bitmap)
                 return
@@ -134,6 +137,49 @@ class WidgetRemoteViewsBuilder(private val context: Context) {
         downloadImageAsync(url, widgetId)
     }
     
+    /**
+     * RemoteViews has strict Binder limits; large bitmaps cause "Problem loading widget".
+     * Decode with subsampling, then cap the longest side.
+     */
+    private fun decodeBitmapForWidget(path: String, maxSide: Int = 520): Bitmap? {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(path, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+
+        val opts = BitmapFactory.Options().apply {
+            inSampleSize = calculateInSampleSize(bounds.outWidth, bounds.outHeight, maxSide, maxSide)
+        }
+        var decoded = BitmapFactory.decodeFile(path, opts) ?: return null
+        decoded = scaleBitmapToMaxSide(decoded, maxSide)
+        return decoded
+    }
+
+    private fun calculateInSampleSize(width: Int, height: Int, reqW: Int, reqH: Int): Int {
+        var inSampleSize = 1
+        if (height > reqH || width > reqW) {
+            var halfH = height / 2
+            var halfW = width / 2
+            while (halfH / inSampleSize >= reqH && halfW / inSampleSize >= reqW) {
+                inSampleSize *= 2
+            }
+        }
+        return max(1, inSampleSize)
+    }
+
+    private fun scaleBitmapToMaxSide(bitmap: Bitmap, maxSide: Int): Bitmap {
+        val w = bitmap.width
+        val h = bitmap.height
+        if (w <= maxSide && h <= maxSide) return bitmap
+        val ratio = maxSide.toFloat() / max(w, h)
+        val nw = max(1, (w * ratio).roundToInt())
+        val nh = max(1, (h * ratio).roundToInt())
+        val scaled = Bitmap.createScaledBitmap(bitmap, nw, nh, true)
+        if (scaled != bitmap) {
+            bitmap.recycle()
+        }
+        return scaled
+    }
+
     private fun downloadImageAsync(url: String, widgetId: Int) {
         CoroutineScope(Dispatchers.IO).launch {
             try {

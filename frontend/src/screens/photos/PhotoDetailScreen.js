@@ -6,11 +6,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { timeAgo, expiresIn } from '../../utils/timeUtils';
 import { deletePhoto } from '../../api/photos';
 import { useAuth } from '../../context/AuthContext';
+import { emitPhotoDeleted } from '../../utils/photoEvents';
 
 const { width, height } = Dimensions.get('window');
 
 const PhotoDetailScreen = ({ route, navigation }) => {
-  const { photo, onPhotoDeleted } = route.params;
+  const { photo } = route.params;
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [isDeleting, setIsDeleting] = useState(false);
@@ -32,7 +33,7 @@ const PhotoDetailScreen = ({ route, navigation }) => {
           setIsDeleting(true);
           try {
             await deletePhoto(photo._id);
-            if (onPhotoDeleted) onPhotoDeleted(photo._id);
+            emitPhotoDeleted(photo._id, photo.groupId != null ? String(photo.groupId) : undefined);
             navigation.goBack();
           } catch (e) {
             Alert.alert('Error', 'Failed to delete photo.');
@@ -79,11 +80,12 @@ const PhotoDetailScreen = ({ route, navigation }) => {
         {isDeleting ? (
           <ActivityIndicator color="#FF6B35" size="large" />
         ) : (
-          <Image 
-            source={{ uri: photo.imageUrl }} 
+          <Image
+            source={{ uri: photo.imageUrl || photo.thumbnailUrl }}
             style={styles.image}
             contentFit="contain"
             transition={300}
+            recyclingKey={photo._id}
           />
         )}
       </View>

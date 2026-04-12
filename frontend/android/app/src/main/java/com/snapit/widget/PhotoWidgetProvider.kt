@@ -85,14 +85,17 @@ class PhotoWidgetProvider : AppWidgetProvider() {
         val photoData = WidgetPreferences.getPhotoData(context, widgetId)
         val size = getWidgetSize(context, appWidgetManager, widgetId)
         
-        val builder = WidgetRemoteViewsBuilder(context)
-        val views = when (size) {
-            WidgetSize.SMALL -> builder.buildSmallWidget(widgetId, groupData, photoData)
-            WidgetSize.MEDIUM -> builder.buildMediumWidget(widgetId, groupData, photoData)
-            WidgetSize.LARGE -> builder.buildLargeWidget(widgetId, groupData, photoData)
+        try {
+            val builder = WidgetRemoteViewsBuilder(context)
+            val views = when (size) {
+                WidgetSize.SMALL -> builder.buildSmallWidget(widgetId, groupData, photoData)
+                WidgetSize.MEDIUM -> builder.buildMediumWidget(widgetId, groupData, photoData)
+                WidgetSize.LARGE -> builder.buildLargeWidget(widgetId, groupData, photoData)
+            }
+            appWidgetManager.updateAppWidget(widgetId, views)
+        } catch (e: Exception) {
+            Log.e("PhotoWidgetProvider", "updateAppWidget failed", e)
         }
-
-        appWidgetManager.updateAppWidget(widgetId, views)
     }
     
     private fun findGroupById(context: Context, groupId: String): GroupData? {

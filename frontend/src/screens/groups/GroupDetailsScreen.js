@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  ActivityIndicator, FlatList, RefreshControl, Animated
+  ActivityIndicator, FlatList, RefreshControl, Animated, DeviceEventEmitter
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,6 +11,7 @@ import * as api from '../../api/groups';
 import * as photoApi from '../../api/photos';
 import PhotoCard from '../../components/photos/PhotoCard';
 import socketService from '../../services/socketService';
+import { PHOTO_DELETED_EVENT } from '../../utils/photoEvents';
 
 const GroupDetailsScreen = ({ navigation, route }) => {
   const { groupId } = route.params || {};
@@ -61,6 +62,19 @@ const GroupDetailsScreen = ({ navigation, route }) => {
   useEffect(() => {
     if (groupId) loadGroupAndFirstPage();
   }, [groupId, loadGroupAndFirstPage]);
+
+  const handlePhotoDeleted = useCallback((photoId) => {
+    setPhotos((prev) => prev.filter((p) => p._id !== photoId));
+  }, []);
+
+  // Photo deleted from detail screen (avoids non-serializable callbacks in navigation params)
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener(PHOTO_DELETED_EVENT, ({ photoId, groupId: gid }) => {
+      if (gid != null && String(gid) !== String(groupId)) return;
+      handlePhotoDeleted(photoId);
+    });
+    return () => sub.remove();
+  }, [groupId, handlePhotoDeleted]);
 
   // ─── Socket.io Real-time Subscriptions ───────────────────
   useEffect(() => {
@@ -126,10 +140,6 @@ const GroupDetailsScreen = ({ navigation, route }) => {
     }
   };
 
-  const handlePhotoDeleted = (photoId) => {
-    setPhotos((prev) => prev.filter((p) => p._id !== photoId));
-  };
-
   const openCamera = () => {
     navigation.navigate('Camera', { groupId });
   };
@@ -180,16 +190,7 @@ const GroupDetailsScreen = ({ navigation, route }) => {
         data={photos}
         keyExtractor={(item) => item._id}
         renderItem={({ item }) => (
-          <PhotoCard
-            photo={item}
-            onDelete={handlePhotoDeleted}
-            onPress={() =>
-              navigation.navigate('PhotoDetail', {
-                photo: item,
-                onPhotoDeleted: handlePhotoDeleted,
-              })
-            }
-          />
+          <PhotoCard photo={item} onDelete={handlePhotoDeleted} />
         )}
         contentContainerStyle={{ paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
