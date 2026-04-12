@@ -18,47 +18,70 @@ class WidgetUpdateWorker(context: Context, params: WorkerParameters) :
     CoroutineWorker(context, params) {
     
     override suspend fun doWork(): Result {
+        Log.i("WidgetFinal", "=== WidgetUpdateWorker RUNNING - this may overwrite widget")
         return try {
-            val widgets = WidgetPreferences.getAllWidgets(applicationContext)
-            
+            val ctx = applicationContext
+            val widgets = WidgetPreferences.getAllWidgets(ctx)
+            Log.d(
+                "WidgetRefreshWorker",
+                "prefs path: ${ctx.applicationInfo.dataDir}, widgets found: ${widgets.size}"
+            )
+
             if (widgets.isEmpty()) {
                 return Result.success()
             }
-            
+
             widgets.forEach { (widgetId, groupId) ->
                 updateWidgetPhoto(widgetId, groupId)
             }
-            
+
             Result.success()
         } catch (e: Exception) {
             Log.e("WidgetUpdateWorker", "Update failed", e)
             Result.retry()
         }
     }
-    
+
     private suspend fun updateWidgetPhoto(widgetId: Int, groupId: String) {
-        // Here we ideally fetch from API or react native logic.
-        // For baseline offline support or background, you would integrate a native network call if applicable.
-        val photoData = fetchLatestPhoto(groupId) ?: return
-        
-        val imageFile = ImageCacheManager(applicationContext)
-            .downloadAndCacheImage(photoData.photoUrl, widgetId)
-        
-        if (imageFile != null) {
-            WidgetPreferences.savePhotoData(applicationContext, widgetId, photoData)
-            WidgetPreferences.saveLastUpdate(applicationContext, widgetId, System.currentTimeMillis())
-            val intent = Intent(applicationContext, PhotoWidgetProvider::class.java)
-            intent.action = PhotoWidgetProvider.ACTION_WIDGET_UPDATE
-            intent.putExtra(PhotoWidgetProvider.EXTRA_WIDGET_ID, widgetId)
-            intent.putExtra(PhotoWidgetProvider.EXTRA_PHOTO_DATA, Gson().toJson(photoData))
-            applicationContext.sendBroadcast(intent)
+        val photoData = fetchLatestPhoto(widgetId, groupId) ?: return
+
+        if (photoData.photoUrl.isNotBlank()) {
+            runCatching {
+                ImageCacheManager(applicationContext).downloadAndCacheImage(photoData.photoUrl, widgetId)
+            }
         }
+
+        WidgetPreferences.savePhotoData(applicationContext, widgetId, photoData)
+        WidgetPreferences.saveLastUpdate(applicationContext, widgetId, System.currentTimeMillis())
+
+        val intent = Intent(applicationContext, PhotoWidgetProvider::class.java).apply {
+            action = PhotoWidgetProvider.ACTION_WIDGET_UPDATE
+            putExtra(PhotoWidgetProvider.EXTRA_WIDGET_ID, widgetId)
+            putExtra(PhotoWidgetProvider.EXTRA_PHOTO_DATA, Gson().toJson(photoData))
+        }
+        applicationContext.sendBroadcast(intent)
     }
-    
-    private suspend fun fetchLatestPhoto(groupId: String): WidgetPhotoData? {
-        // Return existing for now unless headless JS is executed.
-        // Usually fetching directly inside background worker requires an API call implementation here.
-        return null
+
+    /**
+     * Prefer persisted widget photo (from RN / bridge). Fallback: group catalog latest image URL.
+     */
+    private fun fetchLatestPhoto(widgetId: Int, groupId: String): WidgetPhotoData? {
+        WidgetPreferences.getPhotoData(applicationContext, widgetId)?.let { return it }
+
+        val gid = groupId.trim()
+        val group = WidgetPreferences.getUserGroups(applicationContext).find { it.id == gid }
+        val latest = group?.latestPhoto?.trim().orEmpty()
+        if (latest.isEmpty()) return null
+
+        return WidgetPhotoData(
+            photoUrl = latest,
+            uploaderName = "",
+            uploaderAvatar = null,
+            uploadedAt = System.currentTimeMillis(),
+            groupName = group?.name ?: "",
+            groupId = gid,
+            caption = null
+        )
     }
     
     companion object {

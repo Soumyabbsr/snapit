@@ -71,7 +71,7 @@ object WidgetPreferences {
     
     // Save photo data for widget (for caching)
     fun savePhotoData(context: Context, widgetId: Int, photoData: WidgetPhotoData) {
-        getPrefs(context).edit().putString(KEY_PHOTO_DATA + widgetId, photoData.toJson()).apply()
+        getPrefs(context).edit().putString(KEY_PHOTO_DATA + widgetId, photoData.toJson()).commit()
     }
     
     // Get cached photo data

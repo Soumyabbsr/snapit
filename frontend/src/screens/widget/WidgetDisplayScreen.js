@@ -8,7 +8,8 @@ import {
   Platform,
   ToastAndroid,
 } from 'react-native';
-import FastImage from 'react-native-fast-image';
+import { Image } from 'expo-image';
+import { resolvePhotoImageUri, normalizeHttpUrl } from '../../utils/imageUri';
 import { formatDistanceToNow } from 'date-fns';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -103,6 +104,13 @@ const WidgetDisplayScreen = ({ navigation, route }) => {
   }
 
   const { photo, group } = widgetData;
+  const previewUri =
+    resolvePhotoImageUri(photo) ||
+    normalizeHttpUrl(photo?.url) ||
+    normalizeHttpUrl(photo?.imageUrl) ||
+    normalizeHttpUrl(photo?.thumbnailUrl) ||
+    null;
+  const previewSource = previewUri ? { uri: previewUri } : null;
   const when = photo.uploadedAt
     ? formatDistanceToNow(new Date(photo.uploadedAt), { addSuffix: true })
     : '';
@@ -115,11 +123,31 @@ const WidgetDisplayScreen = ({ navigation, route }) => {
       </TouchableOpacity>
 
       <View style={styles.imageCard}>
-        <FastImage
-          source={{ uri: photo.url, priority: FastImage.priority.high }}
-          style={styles.image}
-          resizeMode={FastImage.resizeMode.cover}
-        />
+        {previewSource ? (
+          <Image
+            source={previewSource}
+            style={styles.image}
+            contentFit="cover"
+            priority="high"
+            cachePolicy="memory-disk"
+            onError={(e) => {
+              const errMsg = e?.error ?? e?.message ?? String(e);
+              // eslint-disable-next-line no-console
+              console.warn(
+                '[WidgetDisplayScreen][expo-image] load error:',
+                errMsg,
+                'source:',
+                JSON.stringify(previewSource),
+                'raw photo keys:',
+                photo && typeof photo === 'object' ? Object.keys(photo) : []
+              );
+            }}
+          />
+        ) : (
+          <View style={[styles.image, styles.imagePlaceholder]}>
+            <Text style={styles.muted}>No image URL in widget payload</Text>
+          </View>
+        )}
         <View style={styles.pill}>
           <Text style={styles.pillText} numberOfLines={1}>
             {photo.uploaderName || 'Friend'} · {when}
@@ -173,6 +201,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   image: { width: '100%', aspectRatio: 1 },
+  imagePlaceholder: { justifyContent: 'center', alignItems: 'center', backgroundColor: '#1a1a1a' },
   pill: {
     position: 'absolute',
     left: 12,

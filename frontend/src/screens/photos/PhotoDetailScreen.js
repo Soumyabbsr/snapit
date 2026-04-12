@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Alert, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,6 +7,7 @@ import { timeAgo, expiresIn } from '../../utils/timeUtils';
 import { deletePhoto } from '../../api/photos';
 import { useAuth } from '../../context/AuthContext';
 import { emitPhotoDeleted } from '../../utils/photoEvents';
+import { resolvePhotoImageUri } from '../../utils/imageUri';
 
 const { width, height } = Dimensions.get('window');
 
@@ -15,6 +16,43 @@ const PhotoDetailScreen = ({ route, navigation }) => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [isDeleting, setIsDeleting] = useState(false);
+  const [imgFailed, setImgFailed] = useState(false);
+  const imageUri = resolvePhotoImageUri(photo);
+  const mainImageSource = useMemo(
+    () => (imageUri ? { uri: imageUri } : null),
+    [imageUri]
+  );
+
+  useEffect(() => {
+    setImgFailed(false);
+  }, [photo?._id, imageUri]);
+
+  useEffect(() => {
+    if (!mainImageSource?.uri) return;
+    // eslint-disable-next-line no-console
+    console.log('[PhotoDetail] main image source:', JSON.stringify(mainImageSource));
+  }, [mainImageSource]);
+
+  useEffect(() => {
+    if (imgFailed || !mainImageSource?.uri) {
+      let sample = '';
+      try {
+        sample = JSON.stringify(photo);
+        if (sample.length > 1500) sample = `${sample.slice(0, 1500)}…`;
+      } catch {
+        sample = String(photo);
+      }
+      // eslint-disable-next-line no-console
+      console.warn(
+        '[PhotoDetail] fallback. imgFailed=',
+        imgFailed,
+        'resolvedUri=',
+        imageUri,
+        'rawPhoto:',
+        sample
+      );
+    }
+  }, [imgFailed, mainImageSource, photo]);
 
   const uploadedBy = typeof photo.uploadedBy === 'object' ? photo.uploadedBy : { _id: photo.uploadedBy };
   const isOwner = uploadedBy._id === user?.id || uploadedBy._id === user?._id;
@@ -79,22 +117,44 @@ const PhotoDetailScreen = ({ route, navigation }) => {
       <View style={styles.imageWrapper}>
         {isDeleting ? (
           <ActivityIndicator color="#FF6B35" size="large" />
-        ) : (
+        ) : mainImageSource && !imgFailed ? (
           <Image
-            source={{ uri: photo.imageUrl || photo.thumbnailUrl }}
+            source={mainImageSource}
             style={styles.image}
             contentFit="contain"
             transition={300}
-            recyclingKey={photo._id}
+            recyclingKey={photo._id != null ? `${photo._id}:${imageUri}` : imageUri}
+            cachePolicy="memory-disk"
+            priority="high"
+            decodeFormat="rgb"
+            allowDownscaling
+            onError={(e) => {
+              const errMsg = e?.error ?? e?.message ?? String(e);
+              // eslint-disable-next-line no-console
+              console.warn(
+                '[PhotoDetail][expo-image] load error:',
+                errMsg,
+                'source:',
+                JSON.stringify(mainImageSource)
+              );
+              setImgFailed(true);
+            }}
           />
+        ) : (
+          <View style={[styles.image, { justifyContent: 'center', alignItems: 'center', backgroundColor: '#111' }]}>
+            <Text style={{ color: '#888' }}>Could not load image</Text>
+          </View>
         )}
       </View>
 
       {/* ── Footer Overlay ── */}
       <View style={[styles.footer, { paddingBottom: insets.bottom || 24 }]}>
         <View style={styles.uploaderInfo}>
-          {uploadedBy.profilePicture?.url ? (
-            <Image source={{ uri: uploadedBy.profilePicture.url }} style={styles.avatar} />
+          {uploadedBy.profilePicture?.url || uploadedBy.avatar ? (
+            <Image
+              source={{ uri: uploadedBy.profilePicture?.url || uploadedBy.avatar }}
+              style={styles.avatar}
+            />
           ) : (
             <View style={styles.avatarFallback}>
               <Text style={styles.avatarText}>{uploadedBy.name?.charAt(0) || 'U'}</Text>

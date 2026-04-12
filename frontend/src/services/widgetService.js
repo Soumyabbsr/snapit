@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { normalizeHttpUrl, resolvePhotoImageUri } from '../utils/imageUri';
 
 const WIDGET_CONFIG_KEY = '@snapit_widget_config';
 
@@ -37,14 +38,9 @@ class WidgetService {
         let latestPhoto = null;
         const lp = g.latestPhoto;
         if (lp && typeof lp === 'object') {
-          latestPhoto =
-            lp.cdnUrl ||
-            lp.imageUrl ||
-            lp.thumbnailUrl ||
-            lp.url ||
-            null;
+          latestPhoto = resolvePhotoImageUri(lp);
         } else if (typeof lp === 'string') {
-          latestPhoto = lp;
+          latestPhoto = normalizeHttpUrl(lp);
         }
         return {
           id,
@@ -107,18 +103,40 @@ class WidgetService {
     if (!this.isAndroid || !WidgetModuleNative) return;
 
     try {
+      const gid = String(groupId ?? photoData?.groupId ?? '').trim();
+      const normalizedUrl = resolvePhotoImageUri(photoData);
+
+      if (!normalizedUrl) {
+        console.warn(
+          '[WidgetBridge] skip updateAllWidgets: no valid https URL for widget (Cloudinary fields empty or non-remote)',
+          { groupId: gid, keys: photoData && typeof photoData === 'object' ? Object.keys(photoData) : [] }
+        );
+        return;
+      }
+
+      const created = photoData?.createdAt != null ? new Date(photoData.createdAt).getTime() : Date.now();
+      const uploadedAt = Number.isFinite(created) ? created : Date.now();
+
+      const uploader = photoData?.uploadedBy;
+      const rawAvatar =
+        uploader?.profilePicture?.url ||
+        uploader?.avatar ||
+        (typeof uploader?.profilePicture === 'string' ? uploader.profilePicture : null);
+      const avatarHttps = rawAvatar ? normalizeHttpUrl(rawAvatar) : null;
+
       const widgetPhotoData = {
-        photoUrl: photoData.imageUrl || photoData.thumbnailUrl || '',
-        uploaderName: photoData.uploadedBy?.name || 'Someone',
-        uploaderAvatar: photoData.uploadedBy?.profilePicture?.url || null,
-        uploadedAt: new Date(photoData.createdAt).getTime(),
-        groupName: photoData.group?.name || 'Group',
-        groupId: groupId,
-        caption: photoData.caption || null,
+        photoUrl: normalizedUrl,
+        uploaderName: uploader?.name || 'Someone',
+        uploaderAvatar: avatarHttps,
+        uploadedAt,
+        groupName: photoData?.group?.name || 'Group',
+        groupId: gid,
+        caption: photoData?.caption || null,
       };
 
-      await WidgetModuleNative.updateAllWidgets(widgetPhotoData, groupId);
-      console.log(`📱 Widgets updated for group ${groupId}`);
+      console.log('[WidgetBridge] updateAllWidgets photoUrl:', normalizedUrl, 'groupId:', gid);
+      await WidgetModuleNative.updateAllWidgets(widgetPhotoData, gid);
+      console.log(`📱 Widgets updated for group ${gid}`);
     } catch (error) {
       console.error('Widget update failed:', error);
     }

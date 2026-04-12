@@ -16,6 +16,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.google.gson.Gson
 import com.snapit.R
 
 class WidgetConfigActivity : AppCompatActivity() {
@@ -89,10 +90,13 @@ class WidgetConfigActivity : AppCompatActivity() {
         // Save to preferences
         WidgetPreferences.saveWidgetGroup(this, widgetId, groupId)
 
-        // Push initial update
+        // Push initial update (include cached photo JSON so provider re-saves and Glide path sees URL + cache)
         val intent = Intent(this, PhotoWidgetProvider::class.java)
         intent.action = PhotoWidgetProvider.ACTION_WIDGET_UPDATE
         intent.putExtra(PhotoWidgetProvider.EXTRA_WIDGET_ID, widgetId)
+        WidgetPreferences.getPhotoData(this, widgetId)?.let { photo ->
+            intent.putExtra(PhotoWidgetProvider.EXTRA_PHOTO_DATA, Gson().toJson(photo))
+        }
         sendBroadcast(intent)
 
         // Return OK

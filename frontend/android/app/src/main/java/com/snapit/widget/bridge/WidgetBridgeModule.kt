@@ -1,6 +1,8 @@
 package com.snapit.widget.bridge
 
 import android.content.Intent
+import android.os.SystemClock
+import android.util.Log
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
@@ -22,10 +24,16 @@ class WidgetBridgeModule(reactContext: ReactApplicationContext) :
     fun updateWidget(widgetId: Int, photoDataJson: ReadableMap, promise: Promise) {
         try {
             val photoData = parsePhotoData(photoDataJson)
+            Log.i("WidgetBridge", "updateWidget widgetId=$widgetId photoUrl=${photoData.photoUrl}")
             
             // Save photo data
             WidgetPreferences.savePhotoData(reactApplicationContext, widgetId, photoData)
-            
+            Log.i("WidgetBridge", "savePhotoData called for widgetId=$widgetId url=${photoData.photoUrl}")
+            val checkSingle = WidgetPreferences.getPhotoData(reactApplicationContext, widgetId)
+            Log.i("WidgetBridge", "verify saved photoData=${checkSingle?.photoUrl}")
+
+            SystemClock.sleep(100)
+
             // Trigger widget update
             val intent = Intent(reactApplicationContext, PhotoWidgetProvider::class.java)
             intent.action = PhotoWidgetProvider.ACTION_WIDGET_UPDATE
@@ -43,12 +51,19 @@ class WidgetBridgeModule(reactContext: ReactApplicationContext) :
     fun updateAllWidgets(photoDataJson: ReadableMap, groupId: String, promise: Promise) {
         try {
             val photoData = parsePhotoData(photoDataJson)
+            Log.i("WidgetBridge", "updateAllWidgets groupId=${groupId.trim()} photoUrl=${photoData.photoUrl}")
             val widgets = WidgetPreferences.getAllWidgets(reactApplicationContext)
             
+            val targetGid = groupId.trim()
             widgets.forEach { (widgetId, savedGroupId) ->
-                if (savedGroupId == groupId) {
+                if (savedGroupId.trim() == targetGid) {
                     WidgetPreferences.savePhotoData(reactApplicationContext, widgetId, photoData)
-                    
+                    Log.i("WidgetBridge", "savePhotoData called for widgetId=$widgetId url=${photoData.photoUrl}")
+                    val check = WidgetPreferences.getPhotoData(reactApplicationContext, widgetId)
+                    Log.i("WidgetBridge", "verify saved photoData=${check?.photoUrl}")
+
+                    SystemClock.sleep(100)
+
                     val intent = Intent(reactApplicationContext, PhotoWidgetProvider::class.java)
                     intent.action = PhotoWidgetProvider.ACTION_WIDGET_UPDATE
                     intent.putExtra(PhotoWidgetProvider.EXTRA_WIDGET_ID, widgetId)
@@ -139,14 +154,27 @@ class WidgetBridgeModule(reactContext: ReactApplicationContext) :
     }
     
     private fun parsePhotoData(map: ReadableMap): WidgetPhotoData {
+        val uploadedAtMs = safeReadUploadedAt(map)
         return WidgetPhotoData(
             photoUrl = map.getString("photoUrl") ?: "",
             uploaderName = map.getString("uploaderName") ?: "Unknown",
             uploaderAvatar = map.getString("uploaderAvatar"),
-            uploadedAt = map.getDouble("uploadedAt").toLong(),
+            uploadedAt = uploadedAtMs,
             groupName = map.getString("groupName") ?: "",
-            groupId = map.getString("groupId") ?: "",
+            groupId = (map.getString("groupId") ?: "").trim(),
             caption = map.getString("caption")
         )
+    }
+
+    private fun safeReadUploadedAt(map: ReadableMap): Long {
+        return try {
+            if (!map.hasKey("uploadedAt") || map.isNull("uploadedAt")) {
+                return System.currentTimeMillis()
+            }
+            val raw = map.getDouble("uploadedAt")
+            if (raw.isNaN() || raw.isInfinite()) System.currentTimeMillis() else raw.toLong()
+        } catch (_: Exception) {
+            System.currentTimeMillis()
+        }
     }
 }

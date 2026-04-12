@@ -1,18 +1,63 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Alert, TouchableWithoutFeedback } from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  TouchableWithoutFeedback,
+  useWindowDimensions,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { timeAgo, expiresIn } from '../../utils/timeUtils';
 import { deletePhoto } from '../../api/photos';
 import { useAuth } from '../../context/AuthContext';
-
-const { width } = Dimensions.get('window');
+import { resolvePhotoImageUri } from '../../utils/imageUri';
 
 const PhotoCard = ({ photo, onDelete }) => {
+  const { width: winW } = useWindowDimensions();
   const { user } = useAuth();
   const navigation = useNavigation();
   const [isDeleting, setIsDeleting] = useState(false);
+  const [imgFailed, setImgFailed] = useState(false);
+  const imageUri = resolvePhotoImageUri(photo);
+  const mainImageSource = useMemo(
+    () => (imageUri ? { uri: imageUri } : null),
+    [imageUri]
+  );
+
+  useEffect(() => {
+    setImgFailed(false);
+  }, [photo?._id, imageUri]);
+
+  useEffect(() => {
+    if (!mainImageSource?.uri) return;
+    // eslint-disable-next-line no-console
+    console.log('[PhotoCard] main image source:', JSON.stringify(mainImageSource), 'photoId:', photo?._id);
+  }, [mainImageSource, photo?._id]);
+
+  useEffect(() => {
+    if (imgFailed || !mainImageSource?.uri) {
+      let sample = '';
+      try {
+        sample = JSON.stringify(photo);
+        if (sample.length > 1500) sample = `${sample.slice(0, 1500)}…`;
+      } catch {
+        sample = String(photo);
+      }
+      // eslint-disable-next-line no-console
+      console.warn(
+        '[PhotoCard] showing fallback (no uri or load failed). imgFailed=',
+        imgFailed,
+        'resolvedUri=',
+        imageUri,
+        'rawPhoto sample:',
+        sample
+      );
+    }
+  }, [imgFailed, mainImageSource, photo]);
 
   const uploadedBy = typeof photo.uploadedBy === 'object' ? photo.uploadedBy : { _id: photo.uploadedBy };
   const isOwner = uploadedBy._id === user?.id || uploadedBy._id === user?._id;
@@ -71,13 +116,31 @@ const PhotoCard = ({ photo, onDelete }) => {
         }
       >
         <View style={styles.imageContainer}>
-          <Image
-            source={{ uri: photo.imageUrl || photo.thumbnailUrl }}
-            style={styles.image}
-            contentFit="cover"
-            transition={200}
-            recyclingKey={photo._id}
-          />
+          {mainImageSource && !imgFailed ? (
+            <Image
+              source={mainImageSource}
+              style={[styles.image, { width: winW, height: winW * 1.25 }]}
+              contentFit="cover"
+              transition={200}
+              cachePolicy="memory-disk"
+              priority="high"
+              onError={(e) => {
+                const errMsg = e?.error ?? e?.message ?? String(e);
+                // eslint-disable-next-line no-console
+                console.warn(
+                  '[PhotoCard][expo-image] load error:',
+                  errMsg,
+                  'source:',
+                  JSON.stringify(mainImageSource)
+                );
+                setImgFailed(true);
+              }}
+            />
+          ) : (
+            <View style={[styles.image, { width: winW, height: winW * 1.25, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1a1a1a' }]}>
+              <Text style={{ color: '#666', fontSize: 13 }}>Could not load image</Text>
+            </View>
+          )}
           <View style={styles.expirationBadge}>
             <Ionicons name="timer-outline" size={12} color="#fff" style={{ marginRight: 4 }} />
             <Text style={styles.expirationText}>{expiresIn(photo.expiresAt)}</Text>
@@ -89,7 +152,7 @@ const PhotoCard = ({ photo, onDelete }) => {
       {photo.caption ? (
         <View style={styles.footer}>
           <Text style={styles.caption}>
-            <Text style={styles.captionName}>{photo.uploadedBy.name} </Text>
+            <Text style={styles.captionName}>{uploadedBy.name || 'Someone'} </Text>
             {photo.caption}
           </Text>
         </View>
@@ -115,7 +178,7 @@ const styles = StyleSheet.create({
   time: { color: '#666', fontSize: 11, marginTop: 2 },
   
   imageContainer: { position: 'relative' },
-  image: { width: width, height: width * 1.25, backgroundColor: '#111' },
+  image: { backgroundColor: '#111' },
   
   expirationBadge: {
     position: 'absolute', top: 12, right: 12,

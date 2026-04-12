@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useReducer, useCallback } from 'react';
+import { AppState } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { register as apiRegister, login as apiLogin, getCurrentUser } from '../api/auth';
 import * as groupApi from '../api/groups';
@@ -67,6 +68,16 @@ export const AuthProvider = ({ children }) => {
     } else {
       socketService.disconnect();
     }
+  }, [state.token]);
+
+  // When app returns to foreground, refresh Android widget catalog + thumbnails (logged-in only)
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next !== 'active' || !state.token) return;
+      void syncAndroidWidgetGroupCatalog();
+      void widgetService.refreshAllWidgets();
+    });
+    return () => sub.remove();
   }, [state.token]);
 
   // Auto-login on app start

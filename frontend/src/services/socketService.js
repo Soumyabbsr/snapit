@@ -1,6 +1,8 @@
 import { io } from 'socket.io-client';
+import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { BASE_URL } from '../config/constants';
+import widgetService from './widgetService';
 
 const TOKEN_KEY = 'snapit_auth_token';
 
@@ -56,10 +58,26 @@ class SocketService {
     this.socket.on('connect_error', (err) => {
       console.warn('⚠️ Socket connect error:', err.message);
     });
+
+    // Keep Android home-screen widgets in sync when any member posts (server joins all member group rooms on connect).
+    this.socket.off('photo:new', this._onPhotoNewForWidget);
+    this.socket.on('photo:new', this._onPhotoNewForWidget);
   }
+
+  _onPhotoNewForWidget = async (payload) => {
+    if (Platform.OS !== 'android') return;
+    const { photo, groupId } = payload || {};
+    if (!photo || groupId == null) return;
+    try {
+      await widgetService.onPhotoPosted(String(groupId), photo);
+    } catch (e) {
+      console.warn('Android widget: photo:new sync failed', e?.message || e);
+    }
+  };
 
   disconnect() {
     if (this.socket) {
+      this.socket.off('photo:new', this._onPhotoNewForWidget);
       this.socket.disconnect();
       this.socket = null;
       this.activeGroupRooms.clear();

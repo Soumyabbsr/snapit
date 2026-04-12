@@ -6,24 +6,24 @@ import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
 
 data class WidgetPhotoData(
-    @SerializedName("photo_url")
+    @SerializedName(value = "photo_url", alternate = ["photoUrl"])
     val photoUrl: String,
-    
-    @SerializedName("uploader_name")
+
+    @SerializedName(value = "uploader_name", alternate = ["uploaderName"])
     val uploaderName: String,
-    
-    @SerializedName("uploader_avatar")
+
+    @SerializedName(value = "uploader_avatar", alternate = ["uploaderAvatar"])
     val uploaderAvatar: String?,
-    
-    @SerializedName("uploaded_at")
+
+    @SerializedName(value = "uploaded_at", alternate = ["uploadedAt"])
     val uploadedAt: Long, // Unix timestamp in milliseconds
-    
-    @SerializedName("group_name")
+
+    @SerializedName(value = "group_name", alternate = ["groupName"])
     val groupName: String,
-    
-    @SerializedName("group_id")
+
+    @SerializedName(value = "group_id", alternate = ["groupId"])
     val groupId: String,
-    
+
     @SerializedName("caption")
     val caption: String? = null
 ) {
