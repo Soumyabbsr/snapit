@@ -62,7 +62,8 @@ exports.registerWidget = async (req, res, next) => {
  */
 exports.getWidgetGroups = async (req, res) => {
   try {
-    const memberships = await GroupMember.find({ userId: req.user._id }).select('groupId').lean();
+    const userId = req.user._id || req.user.id;
+    const memberships = await GroupMember.find({ userId }).select('groupId').lean();
     if (!memberships.length) {
       return res.json({ success: true, data: { groups: [] } });
     }
@@ -75,6 +76,10 @@ exports.getWidgetGroups = async (req, res) => {
     const result = await Promise.all(
       groups.map(async (g) => {
         const memberCount = await GroupMember.countDocuments({ groupId: g._id });
+        const latestPhotoDoc = await Photo.findOne({ groupId: g._id, isActive: true })
+          .sort({ createdAt: -1 })
+          .select('imageUrl thumbnailUrl createdAt')
+          .lean();
         return {
           _id: g._id,
           name: g.name,
@@ -82,6 +87,7 @@ exports.getWidgetGroups = async (req, res) => {
           memberCount,
           photoCount: g.photoCount ?? 0,
           lastPhotoAt: g.lastPhotoAt ?? null,
+          latestPhoto: latestPhotoDoc || null,
         };
       })
     );

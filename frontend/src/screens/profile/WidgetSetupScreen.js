@@ -45,9 +45,17 @@ const WidgetSetupScreen = ({ navigation }) => {
       if (isPull) setListRefreshing(true);
       else setLoading(true);
       const { data } = await apiClient.get('/widgets/groups');
-      setGroups(data.data?.groups || []);
-    } catch {
-      setError('Failed to load groups. Pull down to retry.');
+      const list = data?.data?.groups ?? data?.groups ?? [];
+      const normalized = Array.isArray(list) ? list : [];
+      setGroups(normalized);
+      await widgetService.syncGroupsCatalogToNative(normalized);
+    } catch (err) {
+      const msg =
+        err?.response?.data?.error?.message ||
+        err?.response?.data?.message ||
+        err?.message ||
+        'Failed to load groups.';
+      setError(`${msg} Pull down to retry.`);
     } finally {
       setLoading(false);
       setListRefreshing(false);
@@ -100,14 +108,17 @@ const WidgetSetupScreen = ({ navigation }) => {
     }
   };
 
-  const selectedGroup = groups.find((g) => String(g._id) === String(selectedGroupId));
+  const selectedGroup = groups.find(
+    (g) => String(g._id ?? g.id) === String(selectedGroupId)
+  );
 
   const renderGroupItem = ({ item }) => {
-    const selected = String(selectedGroupId) === String(item._id);
+    const rowId = item._id ?? item.id;
+    const selected = String(selectedGroupId) === String(rowId);
     return (
       <TouchableOpacity
         style={[styles.groupItem, selected && styles.groupItemSelected]}
-        onPress={() => setSelectedGroupId(item._id)}
+        onPress={() => setSelectedGroupId(rowId)}
       >
         <View style={styles.groupIcon}>
           <Text style={styles.groupEmoji}>{item.emoji || '💛'}</Text>
@@ -126,8 +137,9 @@ const WidgetSetupScreen = ({ navigation }) => {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <FlatList
-        data={loading ? [] : groups}
-        keyExtractor={(item) => String(item._id)}
+        style={styles.list}
+        data={groups}
+        keyExtractor={(item) => String(item._id ?? item.id)}
         renderItem={renderGroupItem}
         ListHeaderComponent={
           <>
@@ -288,7 +300,8 @@ const WidgetSetupScreen = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0a0a0a' },
-  scroll: { padding: 20, paddingBottom: 48 },
+  list: { flex: 1 },
+  scroll: { padding: 20, paddingBottom: 48, flexGrow: 1 },
 
   header: {
     flexDirection: 'row',

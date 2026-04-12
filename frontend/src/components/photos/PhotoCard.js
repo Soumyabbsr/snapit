@@ -68,7 +68,7 @@ const PhotoCard = ({ photo, onDelete }) => {
       <TouchableWithoutFeedback onPress={() => navigation.navigate('PhotoDetail', { photo: { ...photo, uploadedBy }, onPhotoDeleted: onDelete })}>
         <View style={styles.imageContainer}>
           <Image 
-            source={{ uri: photo.imageUrl }} 
+            source={{ uri: photo.imageUrl || photo.thumbnailUrl }} 
             style={styles.image}
             contentFit="cover"
             transition={200}

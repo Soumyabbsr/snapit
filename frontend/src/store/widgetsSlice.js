@@ -28,7 +28,7 @@ const widgetsSlice = createSlice({
         (w) => w.groupId != null && w.groupId.toString() === gid
       );
       if (idx === -1) return;
-      const url = photo.cdnUrl || photo.imageUrl;
+      const url = photo.cdnUrl || photo.imageUrl || photo.thumbnailUrl;
       state.widgets[idx].currentPhotoUrl = url;
       state.widgets[idx].currentPhotoUploader = photo.uploadedBy?.name;
       state.widgets[idx].refreshedAt = new Date().toISOString();

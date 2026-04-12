@@ -14,11 +14,12 @@ const validateObjectId = require('../middleware/validateObjectId');
 // POST /api/widgets - Register or update a widget mapping
 router.post('/', protect, registerWidget);
 
-// GET /api/widgets - Get all user's widgets
-router.get('/', protect, getUserWidgets);
-
+// Static paths MUST be registered before GET '/' so they are not shadowed.
 // GET /api/widgets/groups - Get groups available for widget setup
 router.get('/groups', protect, getWidgetGroups);
+
+// GET /api/widgets - Get all user's widgets
+router.get('/', protect, getUserWidgets);
 
 // GET /api/widgets/data/:groupId - Get data for a specific group widget
 router.get('/data/:groupId', protect, validateObjectId, getWidgetData);

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useReducer, useCallback } from 'react';
 import * as api from '../api/groups';
+import widgetService from '../services/widgetService';
 
 const GroupContext = createContext();
 
@@ -32,7 +33,9 @@ export const GroupProvider = ({ children }) => {
     dispatch({ type: 'LOADING' });
     try {
       const { groups } = await api.getUserGroups();
-      dispatch({ type: 'FETCH_SUCCESS', payload: groups });
+      const list = Array.isArray(groups) ? groups : [];
+      dispatch({ type: 'FETCH_SUCCESS', payload: list });
+      await widgetService.syncGroupsCatalogToNative(list);
     } catch (err) {
       dispatch({ type: 'ERROR', payload: err.message });
     }

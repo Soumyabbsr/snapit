@@ -18,6 +18,60 @@ class WidgetService {
   }
 
   /**
+   * Build JSON for Android `GroupData` (snake_case keys: id, name, icon, member_count, latest_photo).
+   * Accepts groups from GET /widgets/groups or GET /groups.
+   */
+  buildNativeGroupCatalogJson(groupsFromApi) {
+    const raw = Array.isArray(groupsFromApi) ? groupsFromApi : [];
+    const list = raw
+      .map((g) => {
+        const id = String(g._id ?? g.id ?? '').trim();
+        if (!id) return null;
+        const emoji = g.emoji || '';
+        const name = (g.name || 'Group').trim();
+        const displayName = emoji ? `${emoji} ${name}`.trim() : name;
+        const icon =
+          (typeof g.icon === 'string' && g.icon.length > 0 ? g.icon : null) ||
+          (typeof g.imageUrl === 'string' ? g.imageUrl : null);
+        const mc = Number(g.memberCount ?? g.member_count ?? 0) || 0;
+        let latestPhoto = null;
+        const lp = g.latestPhoto;
+        if (lp && typeof lp === 'object') {
+          latestPhoto =
+            lp.cdnUrl ||
+            lp.imageUrl ||
+            lp.thumbnailUrl ||
+            lp.url ||
+            null;
+        } else if (typeof lp === 'string') {
+          latestPhoto = lp;
+        }
+        return {
+          id,
+          name: displayName,
+          icon,
+          member_count: mc,
+          latest_photo: latestPhoto,
+        };
+      })
+      .filter(Boolean);
+    return JSON.stringify(list);
+  }
+
+  /**
+   * Writes group list to Android SharedPreferences so WidgetConfigActivity can show a picker.
+   */
+  async syncGroupsCatalogToNative(groupsFromApi) {
+    if (!this.isAndroid || !WidgetModuleNative?.saveUserGroups) return;
+    try {
+      const json = this.buildNativeGroupCatalogJson(groupsFromApi);
+      await WidgetModuleNative.saveUserGroups(json);
+    } catch (e) {
+      console.warn('syncGroupsCatalogToNative:', e?.message || e);
+    }
+  }
+
+  /**
    * Save widget configuration to AsyncStorage.
    * @param {{ groupId: string, displayCount: number, autoRefresh: boolean }} config
    */
@@ -54,7 +108,7 @@ class WidgetService {
 
     try {
       const widgetPhotoData = {
-        photoUrl: photoData.imageUrl,
+        photoUrl: photoData.imageUrl || photoData.thumbnailUrl || '',
         uploaderName: photoData.uploadedBy?.name || 'Someone',
         uploaderAvatar: photoData.uploadedBy?.profilePicture?.url || null,
         uploadedAt: new Date(photoData.createdAt).getTime(),

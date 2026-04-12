@@ -1,7 +1,20 @@
 import React, { createContext, useContext, useEffect, useReducer, useCallback } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { register as apiRegister, login as apiLogin, getCurrentUser } from '../api/auth';
+import * as groupApi from '../api/groups';
 import socketService from '../services/socketService';
+import widgetService from '../services/widgetService';
+
+/** Fills Android SharedPreferences so the home-screen widget config activity can list groups. */
+async function syncAndroidWidgetGroupCatalog() {
+  try {
+    const res = await groupApi.getUserGroups();
+    const list = Array.isArray(res?.groups) ? res.groups : [];
+    await widgetService.syncGroupsCatalogToNative(list);
+  } catch {
+    // ignore — offline or unauthenticated edge cases
+  }
+}
 
 // ─── Secure token key ──────────────────────────────────────
 const TOKEN_KEY = 'snapit_auth_token';
@@ -71,6 +84,7 @@ export const AuthProvider = ({ children }) => {
       }
       const { user } = await getCurrentUser();
       dispatch({ type: 'SET_USER', payload: { user, token } });
+      await syncAndroidWidgetGroupCatalog();
     } catch {
       await deleteToken();
       dispatch({ type: 'LOGOUT' });
@@ -87,6 +101,7 @@ export const AuthProvider = ({ children }) => {
       const { token, user } = response;
       await saveToken(token);
       dispatch({ type: 'SET_USER', payload: { user, token } });
+      await syncAndroidWidgetGroupCatalog();
       return { success: true };
     } catch (err) {
       // Don't use global ERROR dispatch here, let local screens handle it beautifully
@@ -103,6 +118,7 @@ export const AuthProvider = ({ children }) => {
       const { token, user } = response;
       await saveToken(token);
       dispatch({ type: 'SET_USER', payload: { user, token } });
+      await syncAndroidWidgetGroupCatalog();
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };

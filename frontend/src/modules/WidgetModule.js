@@ -73,7 +73,7 @@ export const WidgetModule = {
   },
 
   /**
-   * Get user's groups for widget configuration
+   * Get user's groups for widget configuration (legacy; native list uses prefs from saveUserGroups).
    */
   getUserGroups: async () => {
     if (!WidgetBridge) return [];
@@ -83,7 +83,22 @@ export const WidgetModule = {
       console.error('Get user groups failed:', error);
       return [];
     }
-  }
+  },
+
+  /**
+   * Persist group catalog for Android widget configuration (WidgetPreferences / WidgetConfigActivity).
+   * @param {string} groupsJson JSON array matching native GroupData: id, name, icon, member_count
+   */
+  saveUserGroups: async (groupsJson) => {
+    if (!WidgetBridge?.saveUserGroups) return false;
+    try {
+      await WidgetBridge.saveUserGroups(groupsJson);
+      return true;
+    } catch (error) {
+      console.error('saveUserGroups failed:', error);
+      throw error;
+    }
+  },
 };
 
 export default WidgetModule;

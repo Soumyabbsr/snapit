@@ -19,42 +19,46 @@ class ImageCacheManager(private val context: Context) {
         }
     }
     
-    // Get cache file path for widget
-    private fun getCacheFilePath(widgetId: Int): File {
-        return File(cacheDir, "widget_$widgetId.jpg")
+    // File per widget + image URL so we never show a stale bitmap after the URL changes
+    private fun getCacheFilePath(widgetId: Int, imageUrl: String): File {
+        val safe = imageUrl.hashCode().toString().replace('-', "n")
+        return File(cacheDir, "widget_${widgetId}_$safe.jpg")
     }
 
     // Download image from URL and cache it
     suspend fun downloadAndCacheImage(url: String, widgetId: Int): File? = withContext(Dispatchers.IO) {
+        if (url.isBlank()) return@withContext null
         try {
-            val bitmap = Glide.with(context)
+            val appCtx = context.applicationContext
+            val bitmap = Glide.with(appCtx)
                 .asBitmap()
                 .load(url)
                 .submit(512, 512) // Max size for widget
                 .get()
-            return@withContext saveBitmapToCache(bitmap, widgetId)
+            return@withContext saveBitmapToCache(bitmap, widgetId, url)
         } catch (e: Exception) {
             e.printStackTrace()
             null
         }
     }
     
-    // Get cached image file
-    fun getCachedImage(widgetId: Int): File? {
-        val file = getCacheFilePath(widgetId)
+    // Get cached image file for this widget + URL
+    fun getCachedImage(widgetId: Int, imageUrl: String): File? {
+        if (imageUrl.isBlank()) return null
+        val file = getCacheFilePath(widgetId, imageUrl)
         return if (file.exists()) file else null
     }
     
     // Load image as Bitmap
-    fun loadCachedBitmap(widgetId: Int): Bitmap? {
-        val file = getCachedImage(widgetId) ?: return null
+    fun loadCachedBitmap(widgetId: Int, imageUrl: String): Bitmap? {
+        val file = getCachedImage(widgetId, imageUrl) ?: return null
         return BitmapFactory.decodeFile(file.absolutePath)
     }
     
     // Save bitmap to cache
-    fun saveBitmapToCache(bitmap: Bitmap, widgetId: Int): File? {
+    fun saveBitmapToCache(bitmap: Bitmap, widgetId: Int, imageUrl: String): File? {
         return try {
-            val file = getCacheFilePath(widgetId)
+            val file = getCacheFilePath(widgetId, imageUrl)
             val outputStream = FileOutputStream(file)
             bitmap.compress(Bitmap.CompressFormat.JPEG, 85, outputStream)
             outputStream.flush()
@@ -66,11 +70,13 @@ class ImageCacheManager(private val context: Context) {
         }
     }
     
-    // Clear cache for specific widget
+    // Clear all cached files for this widget (any URL)
     fun clearCache(widgetId: Int) {
-        val file = getCacheFilePath(widgetId)
-        if (file.exists()) {
-            file.delete()
+        val prefix = "widget_${widgetId}_"
+        cacheDir.listFiles()?.forEach { file ->
+            if (file.name.startsWith(prefix) && file.name.endsWith(".jpg")) {
+                file.delete()
+            }
         }
     }
     

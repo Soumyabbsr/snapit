@@ -115,8 +115,13 @@ class WidgetRemoteViewsBuilder(private val context: Context) {
     }
     
     private fun loadImage(views: RemoteViews, imageViewId: Int, url: String, widgetId: Int) {
-        val cachedFile = ImageCacheManager(context).getCachedImage(widgetId)
-        
+        if (url.isBlank()) {
+            views.setImageViewResource(imageViewId, R.drawable.ic_widget_placeholder)
+            return
+        }
+
+        val cachedFile = ImageCacheManager(context).getCachedImage(widgetId, url)
+
         if (cachedFile?.exists() == true) {
             val bitmap = BitmapFactory.decodeFile(cachedFile.absolutePath)
             if (bitmap != null) {
@@ -124,7 +129,7 @@ class WidgetRemoteViewsBuilder(private val context: Context) {
                 return
             }
         }
-        
+
         views.setImageViewResource(imageViewId, R.drawable.ic_widget_placeholder)
         downloadImageAsync(url, widgetId)
     }

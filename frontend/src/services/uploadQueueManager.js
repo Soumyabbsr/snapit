@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Network from 'expo-network';
 import { uploadPhoto } from '../api/photos';
+import * as groupApi from '../api/groups';
+import widgetService from './widgetService';
 
 const QUEUE_KEY = '@snapit_upload_queue';
 
@@ -94,10 +96,24 @@ class UploadQueueManager {
         this.updateItemStatus(item.id, 'uploading');
         try {
           // Send photo natively via apiClient
-          await uploadPhoto(item.imageUri, item.groupId, item.caption);
+          const data = await uploadPhoto(item.imageUri, item.groupId, item.caption);
           this.updateItemStatus(item.id, 'completed');
+          try {
+            if (data?.success && data.photo && item.groupId) {
+              await widgetService.onPhotoPosted(
+                String(item.groupId),
+                data.photo
+              );
+            }
+            const res = await groupApi.getUserGroups();
+            const list = Array.isArray(res?.groups) ? res.groups : [];
+            await widgetService.syncGroupsCatalogToNative(list);
+            await widgetService.refreshAllWidgets();
+          } catch (syncErr) {
+            console.warn('Post-upload widget sync:', syncErr?.message || syncErr);
+          }
           // Remove completed item from queue safely
-          setTimeout(() => this.removeFromQueue(item.id), 2000); 
+          setTimeout(() => this.removeFromQueue(item.id), 2000);
         } catch (error) {
           console.log(`Queue item ${item.id} failed:`, error);
           item.retries += 1;

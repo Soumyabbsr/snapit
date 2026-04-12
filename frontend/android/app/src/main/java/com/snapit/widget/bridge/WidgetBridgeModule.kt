@@ -111,8 +111,17 @@ class WidgetBridgeModule(reactContext: ReactApplicationContext) :
     @ReactMethod
     fun getUserGroups(promise: Promise) {
         try {
+            val list = WidgetPreferences.getUserGroups(reactApplicationContext)
             val groups = Arguments.createArray()
-            // Placeholder: React Native will supply actual groups for config screen
+            list.forEach { g ->
+                val m = Arguments.createMap()
+                m.putString("id", g.id)
+                m.putString("name", g.name)
+                if (g.icon != null) m.putString("icon", g.icon) else m.putNull("icon")
+                m.putInt("member_count", g.memberCount)
+                if (g.latestPhoto != null) m.putString("latest_photo", g.latestPhoto) else m.putNull("latest_photo")
+                groups.pushMap(m)
+            }
             promise.resolve(groups)
         } catch (e: Exception) {
             promise.reject("GET_GROUPS_ERROR", e.message, e)
